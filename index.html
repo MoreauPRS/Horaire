@@ -174,7 +174,8 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </header>
   <div class="onglets" role="tablist" aria-label="Choisir la vue">
     <button class="btn" type="button" role="tab" id="tabInst" aria-selected="true">Installations</button>
-    <button class="btn" type="button" role="tab" id="tabBons" aria-selected="false">Cueillettes et livraisons <span class="nb" id="nbBons" hidden></span></button>
+    <button class="btn" type="button" role="tab" id="tabCue" aria-selected="false">Cueillettes <span class="nb" id="nbCue" hidden></span></button>
+    <button class="btn" type="button" role="tab" id="tabLiv" aria-selected="false">Livraisons <span class="nb" id="nbLiv" hidden></span></button>
     <button class="btn" type="button" role="tab" id="tabRec" aria-selected="false">Réceptions <span class="nb" id="nbRec" hidden></span></button>
   </div>
   <section id="vueBons" hidden style="display:grid;gap:12px">
@@ -443,7 +444,7 @@ function charger(nip,premiere){
     const h=new Date();
     document.getElementById('maj').textContent='Mis à jour à '+h.getHours()+' h '+String(h.getMinutes()).padStart(2,'0');
     boutons();rendre();if(document.getElementById('so').value.trim())chercher(false);
-    if(premiere){montrerVue(vue)}else if(vue==='bons')chargerBons();else if(vue==='rec')chargerRec();
+    if(premiere){montrerVue(vue)}else if(vue==='cue'||vue==='liv')chargerBons();else if(vue==='rec')chargerRec();
   },err=>{
     if(premiere&&!DATA){montrerNip('Connexion impossible : '+err)}
     else document.getElementById('maj').textContent='Hors ligne — dernière version affichée';
@@ -463,21 +464,24 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&NIP)charg
 // ================= Cueillettes et livraisons : bons à signer =================
 let BONS=[], vue='inst';
 try{vue=localStorage.getItem('horaire-vue')||'inst'}catch(e){}
+if(vue==='bons')vue='cue';
 function montrerVue(v){
   vue=v;try{localStorage.setItem('horaire-vue',v)}catch(e){}
   document.getElementById('tabInst').setAttribute('aria-selected',v==='inst');
-  document.getElementById('tabBons').setAttribute('aria-selected',v==='bons');
+  document.getElementById('tabCue').setAttribute('aria-selected',v==='cue');
+  document.getElementById('tabLiv').setAttribute('aria-selected',v==='liv');
   document.getElementById('tabRec').setAttribute('aria-selected',v==='rec');
   document.getElementById('vueInst').hidden=v!=='inst';
-  document.getElementById('vueBons').hidden=v!=='bons';
+  document.getElementById('vueBons').hidden=!(v==='cue'||v==='liv');
   document.getElementById('vueRec').hidden=v!=='rec';
   document.getElementById('filtres').hidden=v!=='inst';
-  document.getElementById('titre').textContent=v==='inst'?'Horaire des installations':v==='bons'?'Cueillettes et livraisons':'Réceptions';
-  if(v==='bons')chargerBons();
+  document.getElementById('titre').textContent=v==='inst'?'Horaire des installations':v==='cue'?'Cueillettes':v==='liv'?'Livraisons':'Réceptions';
+  if(v==='cue'||v==='liv')chargerBons();
   if(v==='rec')chargerRec();
 }
 document.getElementById('tabInst').onclick=()=>montrerVue('inst');
-document.getElementById('tabBons').onclick=()=>montrerVue('bons');
+document.getElementById('tabCue').onclick=()=>montrerVue('cue');
+document.getElementById('tabLiv').onclick=()=>montrerVue('liv');
 document.getElementById('tabRec').onclick=()=>montrerVue('rec');
 const resteBon=b=>(b.colis||[]).reduce((n,g)=>n+g.items.filter(i=>!i.remis&&!i.attente).length,0);
 const srcColis=b=>{const f=(b.colis||[]).map(g=>String(g.groupe||'').split(' · ')[0]).filter(x=>x&&!/^moreau/i.test(x));return !f.length?'':f.length===1?`Selon le bon de livraison de ${f[0]}.`:`Selon les bons de livraison des fournisseurs (${f.join(', ')}).`};
@@ -497,11 +501,14 @@ function chargerBons(){
 }
 function rendreBons(){
   const el=document.getElementById('listeBons');el.innerHTML='';
-  const nb=document.getElementById('nbBons');nb.hidden=!BONS.length;nb.textContent=BONS.length;
-  if(!BONS.length){el.innerHTML='<div class="charge">Aucun bon prêt à signer.</div>';return}
+  const nCue=BONS.filter(b=>b.type!=='livraison').length, nLiv=BONS.filter(b=>b.type==='livraison').length;
+  [['nbCue',nCue],['nbLiv',nLiv]].forEach(([id,n])=>{const e=document.getElementById(id);e.hidden=!n;e.textContent=n});
+  const voulu=vue==='liv'?'livraison':'cueillette';
+  if(!BONS.some(b=>(b.type==='livraison'?'livraison':'cueillette')===voulu)){el.innerHTML=`<div class="charge">Aucun bon ${vue==='liv'?'de livraison':'de cueillette'} prêt à signer.</div>`;return}
   // regroupés par date de rendez-vous du client (comme l'horaire) ; sans rendez-vous à la fin
   const auj0=auj(), groupes={}, cles=[];
   BONS.forEach((b,i)=>{
+    if((b.type==='livraison'?'livraison':'cueillette')!==voulu)return;
     const k=b.rdv&&/^\d{4}-\d{2}-\d{2}$/.test(b.rdv)?b.rdv:'zz';
     if(!groupes[k]){groupes[k]=[];cles.push(k)}
     groupes[k].push(i);
