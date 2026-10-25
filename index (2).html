@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horaire Moreau PRS</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b232b">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="icone-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f3; --panel:#ffffff; --fg:#1b232b; --muted:#5d6b78; --line:#d5dbe1; --soft:#f5f7f9;
+  --A:#1f5fa8; --B:#c27a12; --C:#2f8a4e; --D:#138a99;
+  --Abg:#e3edf9; --Bbg:#fbefdc; --Cbg:#e2f3e7; --Dbg:#dcf2f4;
+  --hatch:#c9d1d8; --today:#d23c2a; --ok:#2f8a4e;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171c; --panel:#1a2128; --fg:#e7ecf0; --muted:#94a3b0; --line:#2c3640; --soft:#1f272f;
+  --A:#6aa5ee; --B:#e7a64a; --C:#62c486; --D:#4fc4d2;
+  --Abg:#1c2c40; --Bbg:#3a2a12; --Cbg:#173323; --Dbg:#123338; --hatch:#33404b; --today:#ff6b57; --ok:#62c486; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171c; --panel:#1a2128; --fg:#e7ecf0; --muted:#94a3b0; --line:#2c3640; --soft:#1f272f;
+  --A:#6aa5ee; --B:#e7a64a; --C:#62c486; --D:#4fc4d2;
+  --Abg:#1c2c40; --Bbg:#3a2a12; --Cbg:#173323; --Dbg:#123338; --hatch:#33404b; --today:#ff6b57; --ok:#62c486; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.4}
+.wrap{max-width:1180px;margin:0 auto;padding-block:22px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(30px,5vw,44px);letter-spacing:.01em;margin:0;line-height:1}
+.sub{color:var(--muted);margin-top:6px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.04em;border:1.5px solid var(--line);background:var(--panel);color:var(--fg);padding:7px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.btn:focus-visible{outline:2px solid var(--today);outline-offset:2px}
+.btn.plein{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.filtres{display:flex;flex-wrap:wrap;gap:8px}
+.filtres .btn .pt{width:10px;height:10px;border-radius:50%}
+.filtres .btn[aria-pressed="true"]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.legende{display:flex;flex-wrap:wrap;gap:18px;color:var(--muted);font-size:13px}
+.legende span{display:flex;align-items:center;gap:6px}
+.sw{width:22px;height:12px;border-radius:3px;display:inline-block}
+.sw.res{background:repeating-linear-gradient(135deg,var(--hatch) 0 4px,transparent 4px 8px);border:1px solid var(--line)}
+.sw.conf{border:1.5px dashed var(--muted)}
+.semaine{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.shead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.shead h2{font-family:var(--display);font-size:22px;font-weight:700;margin:0;letter-spacing:.02em}
+.shead .tag{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.shead .tag.now{color:var(--today);font-weight:600}
+.scroll{overflow-x:auto}
+.grille{display:grid;grid-template-columns:72px repeat(10,minmax(54px,1fr));min-width:640px}
+.jh{grid-row:1;font-family:var(--display);font-weight:600;font-size:15px;text-align:center;padding:8px 0 6px;border-left:1px solid var(--line);color:var(--muted)}
+.jh b{color:var(--fg);font-size:18px;margin-left:3px}
+.jh.auj,.jh.auj b{color:var(--today)}
+.jh.off{background:var(--soft)}
+.eqlab{grid-column:1;font-family:var(--display);font-weight:700;font-size:18px;padding:0 10px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);min-height:64px}
+.eqlab i{width:6px;align-self:stretch;margin:10px 0;border-radius:3px}
+.cell{border-top:1px solid var(--line);border-left:1px solid var(--line);min-height:64px}
+.cell.pm{border-left:1px dotted var(--line)}
+.cell.off{background:var(--soft)}
+.cell.res{background:repeating-linear-gradient(135deg,var(--hatch) 0 2px,transparent 2px 9px)}
+.job{margin:6px 4px;border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;justify-content:center;min-width:0;overflow:hidden;position:relative;z-index:1;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.job:focus-visible{outline:2px solid var(--today);outline-offset:1px}
+.job .n{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job .p{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job .etat{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.job .etat.encours{color:var(--today)}
+.job .etat.fini{color:var(--ok)}
+.job.alt{background-image:repeating-linear-gradient(45deg,transparent 0 7px,rgba(127,127,127,.18) 7px 9px)!important;border-style:double!important;border-width:4px!important}
+.job.conf{border-style:dashed!important}
+.job.fini{opacity:.55}
+.job .suite{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;align-self:center;justify-self:center}
+.fetes{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;text-align:center;font-family:var(--display);font-size:22px;font-weight:600}
+.fetes small{display:block;font-family:var(--body);font-size:14px;color:var(--muted);font-weight:400}
+.cherche{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:8px}
+.cherche label{font-family:var(--display);font-weight:700;font-size:19px}
+.crow{display:flex;gap:8px;flex-wrap:wrap}
+.crow input{font:inherit;font-size:17px;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);width:260px;max-width:100%}
+.crow input:focus{outline:2px solid var(--today);outline-offset:1px}
+.rep:empty{display:none}
+.rep{display:grid;gap:8px}
+.carte{border-radius:8px;padding:10px 14px;display:grid;gap:3px;text-align:left;font:inherit;color:inherit;cursor:pointer;border:0;width:100%}
+.carte b{font-size:16px}.carte .d{font-family:var(--display);font-size:22px;font-weight:700}
+.carte small{color:var(--muted)}
+.job.trouve{outline:3px solid var(--today);outline-offset:1px;z-index:3}
+footer{color:var(--muted);font-size:13px}
+/* écran NIP */
+.nip{min-height:100vh;display:grid;place-items:center;padding:16px}
+.nip form{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;display:grid;gap:14px;width:min(360px,100%);text-align:center}
+.nip h1{font-size:34px}
+.nip input{font-family:var(--display);font-size:32px;letter-spacing:.4em;text-align:center;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:var(--soft);color:var(--fg);width:100%}
+.nip .err{color:var(--today);min-height:1.4em;font-size:14px}
+/* fiche */
+dialog{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--fg);width:min(560px,calc(100% - 32px));max-height:calc(100% - 32px)}
+dialog::backdrop{background:rgba(10,14,18,.55)}
+.fiche{padding:22px;display:grid;gap:14px}
+.fiche .haut{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.fiche h2{font-family:var(--display);font-size:30px;margin:0;line-height:1.05}
+.fiche .so{color:var(--muted);font-size:14px;margin-top:4px}
+.fiche dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:0}
+.fiche dt{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.fiche dd{margin:0;font-weight:500}
+.fiche .actions{display:flex;flex-wrap:wrap;gap:10px}
+.fermer{border:none;background:var(--soft);color:var(--fg);width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer;flex:none}
+.pastille{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.charge{color:var(--muted);text-align:center;padding:40px}
+/* onglets et bons */
+.lrec{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start;border-bottom:1px solid var(--line);padding:10px 0}
+.lrec textarea{font:inherit;font-size:15px;width:100%;min-height:70px;padding:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--soft);color:var(--fg)}
+.lrec.fait{opacity:.5}
+.cbon.rec{border-left-color:var(--B)}
+.onglets{display:flex;gap:8px;flex-wrap:wrap}
+.onglets .btn[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.onglets .btn .nb{background:var(--today);color:#fff;border-radius:999px;padding:0 7px;font-size:13px}
+.listeBons{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.cbon{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--C);border-radius:10px;padding:14px 16px;display:grid;gap:4px;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
+.cbon.liv{border-left-color:var(--A)}
+.cbon b{font-size:17px}.cbon small{color:var(--muted)}
+.cbon .typ{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted)}
+.cbon .rst{font-family:var(--display);font-size:20px;font-weight:700}
+dialog.plein{width:min(860px,100%);max-height:100%;height:100%;border-radius:0}
+@media (min-width:900px){dialog.plein{height:auto;max-height:calc(100% - 32px);border-radius:14px}}
+.feuille{padding:0 0 24px;display:grid;gap:14px}
+.ent{background:#1f3b57;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.ent .m{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.04em}
+.ent .t{text-align:right;font-family:var(--display);font-size:19px}
+.ent .t b{display:block;font-size:24px}
+.ent .fermer{background:rgba(255,255,255,.15);color:#fff}
+.zone{padding:0 20px;display:grid;gap:10px}
+.zone h3{font-family:var(--display);font-size:22px;margin:6px 0 0}
+.zone .aide{color:var(--muted);font-size:13.5px;margin-top:-6px}
+table.tb{width:100%;border-collapse:collapse;font-size:15px}
+.tb th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:2px solid var(--fg);padding:6px}
+.tb td{border-bottom:1px solid var(--line);padding:9px 6px;vertical-align:top}
+.tb td small{display:block;color:var(--muted)}
+.tb tr.grp td{font-weight:700;color:var(--muted);font-size:13px;padding-top:14px;border-bottom:none}
+.tb tr.fait td{color:var(--muted)}
+.tb input[type=checkbox]{width:28px;height:28px;accent-color:var(--ok)}
+.tb .num{white-space:nowrap}
+.total{font-family:var(--display);font-size:19px;font-weight:600}
+.champ{font:inherit;font-size:18px;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--soft);color:var(--fg);width:100%}
+.sig{border:2px dashed var(--muted);border-radius:10px;background:#fff;touch-action:none;width:100%;height:200px;display:block}
+.sigrow{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.gros{font-size:21px;padding:14px 22px;justify-content:center}
+.jourbons{grid-column:1/-1;margin:18px 4px 8px;font-size:15px;text-transform:capitalize}.jourbons.retard{color:#b00}.btn[disabled]{opacity:.45;cursor:not-allowed}
+.ok{background:var(--Cbg);border:1px solid var(--C);border-radius:10px;padding:16px;display:grid;gap:8px}
+.ok b{font-family:var(--display);font-size:24px}
+.alerte{background:var(--Bbg);border:1px solid var(--B);border-radius:10px;padding:12px 14px;font-size:14px}
+@media print{body>*:not(#bon){display:none!important}dialog#bon{position:static;width:100%;height:auto;max-height:none;border:none}.sig,.noprint{display:none!important}}
+@media (prefers-reduced-motion:no-preference){.job{transition:transform .12s}.job:hover{transform:translateY(-1px)}}
+</style>
+</head>
+<body>
+<div id="ecranNip" class="nip" hidden>
+  <form id="formNip">
+    <h1>Horaire</h1>
+    <div style="color:var(--muted)">Moreau PRS · installations</div>
+    <input id="champNip" type="password" inputmode="numeric" autocomplete="off" aria-label="NIP" placeholder="NIP">
+    <button class="btn plein" type="submit" style="justify-content:center">Entrer</button>
+    <div class="err" id="errNip" role="alert"></div>
+  </form>
+</div>
+
+<div id="app" class="wrap" hidden>
+  <header>
+    <div>
+      <h1 id="titre">Horaire des installations</h1>
+      <div class="sub"><span id="maj"></span><button class="btn" id="btnMaj" type="button">Actualiser</button></div>
+    </div>
+    <div class="filtres" id="filtres" role="group" aria-label="Choisir une équipe"></div>
+  </header>
+  <div class="onglets" role="tablist" aria-label="Choisir la vue">
+    <button class="btn" type="button" role="tab" id="tabInst" aria-selected="true">Installations</button>
+    <button class="btn" type="button" role="tab" id="tabBons" aria-selected="false">Cueillettes et livraisons <span class="nb" id="nbBons" hidden></span></button>
+    <button class="btn" type="button" role="tab" id="tabRec" aria-selected="false">Réceptions <span class="nb" id="nbRec" hidden></span></button>
+  </div>
+  <section id="vueBons" hidden style="display:grid;gap:12px">
+    <div class="aide" style="color:var(--muted)">Touchez le client pour ouvrir son bon, cocher ce qui part, faire signer et enregistrer.</div>
+    <div class="listeBons" id="listeBons"><div class="charge">Chargement…</div></div>
+  </section>
+  <section id="vueRec" hidden style="display:grid;gap:12px">
+    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, vérifiez les colis, décochez ce qui manque, puis confirmez.</div>
+    <div class="listeBons" id="listeRec"><div class="charge">Chargement…</div></div>
+  </section>
+  <div id="vueInst" style="display:grid;gap:20px">
+  <form class="cherche" id="cherche" role="search">
+    <label for="so">Trouver un projet</label>
+    <div class="crow"><input id="so" type="search" autocomplete="off" placeholder="N° de SO ou nom, ex. 02643 ou Lebel" maxlength="40"><button class="btn plein" type="submit">Chercher</button></div>
+    <div class="rep" id="rep" aria-live="polite"></div>
+  </form>
+  <div class="legende">
+    <span><i class="sw" style="background:var(--Abg);border:1.5px solid var(--A)"></i>Matériel reçu</span>
+    <span><i class="sw conf"></i>Matériel à recevoir (date peut bouger)</span>
+    <span><i class="sw" style="border:4px double var(--muted)"></i>Équipe à confirmer</span>
+    <span><i class="sw res"></i>Vendredi réserve / non disponible</span>
+  </div>
+  <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
+  </div>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes.</footer>
+</div>
+
+<dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
+<dialog id="bon" class="plein" aria-labelledby="bonTitre"></dialog>
+<dialog id="rec" class="plein" aria-labelledby="recTitre"></dialog>
+
+<script src="config.js"></script>
+<script>
+// Application installée : les appels passent par le script Google (POST texte brut, réponse JSON).
+if(window.API_URL&&!(window.google&&google.script&&google.script.run)){
+  const faire=(ok,ko)=>new Proxy({},{get:(_,nom)=>{
+    if(nom==='withSuccessHandler')return f=>faire(f,ko);
+    if(nom==='withFailureHandler')return f=>faire(ok,f);
+    return (...args)=>{
+      fetch(window.API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:nom,args}),redirect:'follow'})
+        .then(r=>r.json()).then(j=>ok&&ok(j)).catch(e=>ko&&ko(e));
+    };
+  }});
+  window.google={script:{run:faire(null,null)}};
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+<script>
+const FERIES=new Set(["2026-10-12","2026-12-23","2026-12-24","2026-12-25","2026-12-28","2026-12-29","2026-12-30","2026-12-31","2027-01-01","2027-05-24","2027-06-24"]);
+const FIN_HORIZON='2027-06-30';
+const ALT=new Set(['02625','02540','02699']); // sur D pour l'instant, autre équipe possible
+const JR=['lun','mar','mer','jeu','ven'], MO=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const iso=d=>d.toISOString().slice(0,10);
+const dd=s=>new Date(s+'T12:00:00Z');
+const add=(s,n)=>{const d=dd(s);d.setUTCDate(d.getUTCDate()+n);return iso(d)};
+const dow=s=>dd(s).getUTCDay();
+const fd=s=>{const d=dd(s);return d.getUTCDate()+' '+MO[d.getUTCMonth()]};
+const auj=()=>{const n=new Date();return new Date(n.getTime()-n.getTimezoneOffset()*60000).toISOString().slice(0,10)};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ouvrable=j=>{const w=dow(j);return w>0&&w<6&&!FERIES.has(j)};
+// réserves : un vendredi sur deux (A et C à partir du 30 oct., D à partir du 6 nov.)
+function estReserve(e,j){
+  if(dow(j)!==5) return false;
+  const ref=(e==='A'||e==='C')?'2026-10-30':e==='D'?'2026-11-06':null;
+  if(!ref||j<ref) return false;
+  return Math.round((dd(j)-dd(ref))/864e5)%14===0;
+}
+function actif(e,j){
+  if(!ouvrable(j)) return 'off';
+  if(e==='B'&&(dow(j)===5||j>'2026-10-29')) return 'off';
+  if((e==='C'||e==='D')&&j<'2026-10-19') return 'off';
+  if(estReserve(e,j)) return 'res';
+  return 'on';
+}
+// Place chaque job sur les demi-journées libres de son équipe à partir de sa date estimée.
+// Équipe A : une job qui commence un vendredi est une petite job du vendredi; les autres sautent les vendredis.
+function placer(liste){
+  // V5 : même règle que la fonction de cédule. Une job EN COURS peut continuer le vendredi et sur la réserve ;
+  // une job dont la « Fin prévue » (écrite par la cédule) est plus tôt que le calcul normal prend le vendredi tampon.
+  const occ={};
+  const tri=[...liste].sort((a,b)=>a.deb<b.deb?-1:a.deb>b.deb?1:(a.finp&&b.finp&&a.finp!==b.finp?(a.finp<b.finp?-1:1):(b.demi-a.demi)));
+  const essai=(x,large)=>{
+    const e=x.eq, vendredi=e==='A'&&dow(x.deb)===5, s=[];
+    let j=x.deb, reste=Math.max(1,x.demi||2), garde=0;
+    while(reste>0&&garde<600&&j<=FIN_HORIZON){
+      garde++;
+      const st=actif(e,j), libre=large(j);
+      const okJour=libre?(st==='on'||st==='res'):(st==='on'&&(e!=='A'||(vendredi?dow(j)===5:dow(j)!==5)));
+      if(okJour){for(const h of ['am','pm']){if(reste>0&&!occ[e+j+h]&&!s.includes(j+h)){s.push(j+h);reste--}}}
+      j=add(j,1);
+    }
+    return s;
+  };
+  tri.forEach(x=>{
+    let s=essai(x,()=>!!x.encours);
+    if(x.finp&&s.length&&s[s.length-1].slice(0,10)>x.finp){
+      const s2=essai(x,j=>!!x.encours||j<=x.finp);
+      if(s2.length&&s2[s2.length-1].slice(0,10)<=x.finp)s=s2;
+    }
+    // job terminée plus tôt : on coupe la barre à « Fin des travaux » et les demi-journées libérées servent aux jobs suivantes
+    if(x.fint){const sc=s.filter(k=>k.slice(0,10)<=x.fint);if(sc.length)s=sc;}
+    s.forEach(k=>occ[x.eq+k]=1);
+    x.slots=s;
+    x.debut=s.length?s[0].slice(0,10):x.deb;
+    x.fin=s.length?s[s.length-1].slice(0,10):x.deb;
+    x.alt=x.eq==='D'&&ALT.has(x.num);
+  });
+  return tri;
+}
+let DATA=null, filtre='tous', NIP='';
+try{filtre=localStorage.getItem('horaire-eq')||'tous'}catch(e){}
+function boutons(){
+  const el=document.getElementById('filtres');el.innerHTML='';
+  [['tous','Toutes'],['A','A'],['B','B'],['C','C'],['D','D']].forEach(([k,t])=>{
+    const b=document.createElement('button');b.type='button';b.className='btn';b.setAttribute('aria-pressed',filtre===k);
+    b.innerHTML=(k==='tous'?t:`<span class="pt" style="background:var(--${k})"></span>Équipe ${t}`);
+    b.onclick=()=>{filtre=k;try{localStorage.setItem('horaire-eq',k)}catch(e){};boutons();rendre()};el.appendChild(b);
+  });
+}
+function rendre(){
+  const box=document.getElementById('semaines');box.innerHTML='';
+  const today=auj();
+  let lundi=add(today,-((dow(today)+6)%7));
+  const eqs=filtre==='tous'?['A','B','C','D']:[filtre];
+  let fetesFait=false;
+  const derniere=DATA.jobs.reduce((m,x)=>x.fin>m?x.fin:m,today);
+  while(lundi<=derniere&&lundi<=FIN_HORIZON){
+    const jours=[0,1,2,3,4].map(i=>add(lundi,i)), vend=jours[4];
+    if(jours.every(j=>!ouvrable(j))){
+      if(!fetesFait){fetesFait=true;const f=document.createElement('div');f.className='fetes';f.innerHTML='Congé des Fêtes<small>aucune installation</small>';box.appendChild(f)}
+      lundi=add(lundi,7);continue;
+    }
+    const lignes=eqs.filter(e=>e!=='B'||lundi<='2026-10-26');
+    if(!lignes.length){lundi=add(lundi,7);continue}
+    const sec=document.createElement('section');sec.className='semaine';
+    const enCours=today>=lundi&&today<=vend;
+    sec.innerHTML=`<div class="shead"><h2>Semaine du ${fd(lundi)}</h2><span class="tag${enCours?' now':''}">${enCours?'Cette semaine':'au '+fd(vend)}</span></div>`;
+    const sc=document.createElement('div');sc.className='scroll';
+    const g=document.createElement('div');g.className='grille';
+    jours.forEach((j,i)=>{const h=document.createElement('div');h.className='jh'+(j===today?' auj':'')+(ouvrable(j)?'':' off');h.style.gridColumn=`${2+i*2} / span 2`;h.innerHTML=`${JR[i]}<b>${dd(j).getUTCDate()}</b>`;g.appendChild(h)});
+    lignes.forEach((e,r)=>{
+      const row=r+2;
+      const lab=document.createElement('div');lab.className='eqlab';lab.style.gridRow=row;lab.innerHTML=`<i style="background:var(--${e})"></i>${e}`;g.appendChild(lab);
+      jours.forEach((j,i)=>{const st=actif(e,j);['am','pm'].forEach((h,k)=>{const c=document.createElement('div');c.className='cell '+h+(st!=='on'?' '+st:'');c.style.gridRow=row;c.style.gridColumn=2+i*2+k;g.appendChild(c)})});
+      jours.forEach((j,i)=>{if(actif(e,j)==='res'){const l=document.createElement('div');l.className='lbl';l.style.gridRow=row;l.style.gridColumn=`${2+i*2} / span 2`;l.textContent='Réserve';g.appendChild(l)}});
+      const idx=s=>{const i=jours.indexOf(s.slice(0,10));return i<0?-1:i*2+(s.endsWith('pm')?1:0)};
+      DATA.jobs.filter(x=>x.eq===e).forEach(x=>{
+        const pos=x.slots.map(idx).filter(v=>v>=0).sort((a,b)=>a-b);if(!pos.length)return;
+        const segs=[];let s0=pos[0],p=pos[0];
+        for(const v of pos.slice(1)){if(v===p+1){p=v}else{segs.push([s0,p]);s0=v;p=v}}segs.push([s0,p]);
+        segs.forEach(([a,b])=>{
+          const d=document.createElement('button');d.type='button';
+          d.className='job'+(x.alt?' alt':'')+(x.conf&&!x.terminee?' conf':'')+(x.terminee?' fini':'')+(trouves.has(x.id)?' trouve':'');
+          d.dataset.id=x.id;d.style.gridRow=row;d.style.gridColumn=`${2+a} / ${3+b}`;
+          d.style.background=`var(--${e}bg)`;d.style.border=`1.5px solid var(--${e})`;
+          const dur=x.demi<2?'½ jour':(x.demi/2)+(x.demi>2?' jours':' jour');
+          const etat=x.terminee?'<span class="etat fini">✓ terminée</span>':x.encours?'<span class="etat encours">en cours</span>':x.alt?'<span class="etat encours">équipe à confirmer</span>':'';
+          const suite=x.debut<jours[0]&&a===0?'<span class="suite">suite</span>':'';
+          d.setAttribute('aria-label',`${x.nom}, ${x.prod||''}, ${dur}`);
+          d.innerHTML=`${suite}${etat}<span class="n">${esc(x.nom)}</span><span class="p">${esc(x.prod||'—')} · ${dur}</span>`;
+          d.onclick=()=>ouvrirFiche(x);
+          g.appendChild(d);
+        });
+      });
+    });
+    sc.appendChild(g);sec.appendChild(sc);box.appendChild(sec);
+    lundi=add(lundi,7);
+  }
+  if(!box.children.length) box.innerHTML='<div class="charge">Aucune installation à afficher.</div>';
+}
+function ouvrirFiche(x){
+  const dlg=document.getElementById('fiche');
+  const adr=[x.rue,x.ville,x.cp].filter(Boolean).join(', ');
+  const dur=x.demi<2?'½ jour':(x.demi/2)+(x.demi>2?' jours':' jour');
+  const dates=x.debut===x.fin?fd(x.debut):`du ${fd(x.debut)} au ${fd(x.fin)}`;
+  const mat=x.conf?'<span class="pastille" style="background:var(--Bbg);color:var(--fg)">À recevoir</span>':'<span class="pastille" style="background:var(--Cbg);color:var(--fg)">Reçu</span>';
+  const etat=x.terminee?'Terminée':x.encours?'En cours':'Prévue';
+  dlg.innerHTML=`<div class="fiche">
+    <div class="haut"><div><h2 id="ficheTitre">${esc(x.nom)}</h2><div class="so">${x.num?'SO-'+esc(x.num)+' · ':''}Équipe ${esc(x.eq)} · ${etat}</div></div>
+    <button class="fermer" type="button" aria-label="Fermer" onclick="document.getElementById('fiche').close()">×</button></div>
+    <dl>
+      <dt>Client</dt><dd>${esc(x.client||'—')}</dd>
+      <dt>Adresse</dt><dd>${esc(adr||'non inscrite')}</dd>
+      <dt>Produits</dt><dd>${esc(x.prod||'—')}</dd>
+      <dt>Durée</dt><dd>${dur} · ${dates}</dd>
+      <dt>Matériel</dt><dd>${mat}</dd>
+    </dl>
+    <div class="actions">
+      ${adr?`<a class="btn plein" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adr)}">Itinéraire</a>`:''}
+      ${x.drive?`<a class="btn" target="_blank" rel="noopener" href="${esc(x.drive)}">Documents (plans, bons)</a>`:''}
+    </div>
+  </div>`;
+  dlg.showModal();
+}
+document.getElementById('fiche').addEventListener('click',e=>{if(e.target.id==='fiche')e.target.close()});
+
+// ---- recherche par n° de SO ou nom ----
+let trouves=new Set();
+const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const fdl=s=>['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][dow(s)]+' '+fd(s);
+function surligner(){document.querySelectorAll('.job').forEach(el=>el.classList.toggle('trouve',trouves.has(el.dataset.id)))}
+function allerA(id){const el=document.querySelector(`.job[data-id="${id}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'})}
+function chercher(defiler){
+  const brut=document.getElementById('so').value.trim();const rep=document.getElementById('rep');
+  if(!brut||!DATA){rep.innerHTML='';trouves=new Set();surligner();return}
+  const chiffres=(brut.match(/\d+/)||[''])[0];const lettres=norm(brut.replace(/[\d\-]/g,'')).trim();
+  let L=DATA.jobs;
+  if(chiffres) L=L.filter(x=>(x.num||'').includes(chiffres.length>=5?chiffres.slice(-5):chiffres));
+  if(lettres) L=L.filter(x=>norm(x.nom+' '+(x.client||'')).includes(lettres));
+  trouves=new Set(L.map(x=>x.id));
+  if(!L.length){rep.innerHTML=`<div class="carte" style="background:var(--soft);cursor:default"><b>« ${esc(brut)} » n’est pas dans l’horaire</b><small>Job déjà faite, cueillette ou livraison, ou dossier pas encore placé.</small></div>`;surligner();return}
+  L=[...L].sort((a,b)=>a.debut<b.debut?-1:1).slice(0,12);
+  rep.innerHTML='';
+  L.forEach(x=>{
+    const b=document.createElement('button');b.type='button';b.className='carte';
+    b.style.background=`var(--${x.eq}bg)`;b.style.borderLeft=`5px solid var(--${x.eq})`;
+    const dur=x.demi<2?'½ journée':(x.demi/2)+(x.demi>2?' jours':' jour');
+    b.innerHTML=`<b>${esc(x.nom)}</b><small>${esc(x.prod||'')}</small><div class="d">${fdl(x.debut)}${x.fin!==x.debut?' au '+fdl(x.fin):''}</div><small>Équipe ${x.eq} · ${dur}${x.conf?' · matériel à recevoir, la date peut bouger':' · matériel reçu'}</small>`;
+    b.onclick=()=>{allerA(x.id);ouvrirFiche(x)};
+    rep.appendChild(b);
+  });
+  surligner();
+  // on défile seulement sur « Chercher » / Entrée, et seulement s'il y a un seul résultat
+  if(defiler&&L.length===1)allerA(L[0].id);
+}
+document.getElementById('cherche').addEventListener('submit',e=>{e.preventDefault();chercher(true)});
+let minuterie=null;
+document.getElementById('so').addEventListener('input',()=>{clearTimeout(minuterie);minuterie=setTimeout(()=>chercher(false),300)});
+
+// ---- chargement des données ----
+// Dans Zoho CRM (onglet Web) : appelle la fonction horaire_equipes avec la session de l'utilisateur.
+let sdkPret=null;
+function initSdk(){
+  if(sdkPret) return sdkPret;
+  sdkPret=new Promise(res=>{
+    let fait=false;const go=()=>{if(!fait){fait=true;res()}};
+    ZOHO.embeddedApp.on('PageLoad',go);
+    ZOHO.embeddedApp.init().then(()=>setTimeout(go,1500)).catch(go);
+  });
+  return sdkPret;
+}
+function appeler(nip,ok,ko){
+  if(window.ZOHO&&ZOHO.embeddedApp){
+    initSdk().then(()=>ZOHO.CRM.FUNCTIONS.execute('horaire_equipes',{arguments:JSON.stringify({})}))
+      .then(r=>{
+        const out=r&&r.details&&r.details.output;
+        if(!out){ko('Zoho : '+JSON.stringify(r).slice(0,300));return}
+        ok({ok:true,data:typeof out==='string'?JSON.parse(out):out});
+      }).catch(e=>ko(typeof e==='string'?e:JSON.stringify(e).slice(0,300)));
+  }else if(window.google&&google.script&&google.script.run){
+    google.script.run.withSuccessHandler(ok).withFailureHandler(err=>ko(String(err&&err.message||err))).getHoraire(nip);
+  }else if(window.MOCK){ // aperçu local
+    setTimeout(()=>ok((nip||'')===(window.MOCK_NIP||'')?{ok:true,data:window.MOCK}:{ok:false,err:'NIP invalide'}),100);
+  }else ko('Service indisponible');
+}
+function charger(nip,premiere){
+  document.getElementById('maj').textContent='Mise à jour…';
+  appeler(nip,r=>{
+    if(!r||!r.ok){
+      if(premiere){const m=r&&r.err||'NIP invalide';montrerNip(nip||m!=='NIP invalide'?m:'')}else{document.getElementById('maj').textContent=r&&r.err||'Erreur'}
+      return;
+    }
+    NIP=nip;try{localStorage.setItem('horaire-nip',nip)}catch(e){}
+    DATA=r.data;DATA.jobs=placer(DATA.jobs||[]);
+    document.getElementById('ecranNip').hidden=true;document.getElementById('app').hidden=false;
+    const h=new Date();
+    document.getElementById('maj').textContent='Mis à jour à '+h.getHours()+' h '+String(h.getMinutes()).padStart(2,'0');
+    boutons();rendre();if(document.getElementById('so').value.trim())chercher(false);
+    if(premiere){montrerVue(vue)}else if(vue==='bons')chargerBons();else if(vue==='rec')chargerRec();
+  },err=>{
+    if(premiere&&!DATA){montrerNip('Connexion impossible : '+err)}
+    else document.getElementById('maj').textContent='Hors ligne — dernière version affichée';
+  });
+}
+function montrerNip(msg){
+  document.getElementById('app').hidden=true;
+  document.getElementById('ecranNip').hidden=false;
+  document.getElementById('errNip').textContent=msg||'';
+  document.getElementById('champNip').focus();
+}
+document.getElementById('formNip').addEventListener('submit',e=>{e.preventDefault();charger(document.getElementById('champNip').value.trim(),true)});
+document.getElementById('btnMaj').onclick=()=>charger(NIP,false);
+setInterval(()=>{if(NIP&&!document.hidden)charger(NIP,false)},5*60*1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&NIP)charger(NIP,false)});
+
+// ================= Cueillettes et livraisons : bons à signer =================
+let BONS=[], vue='inst';
+try{vue=localStorage.getItem('horaire-vue')||'inst'}catch(e){}
+function montrerVue(v){
+  vue=v;try{localStorage.setItem('horaire-vue',v)}catch(e){}
+  document.getElementById('tabInst').setAttribute('aria-selected',v==='inst');
+  document.getElementById('tabBons').setAttribute('aria-selected',v==='bons');
+  document.getElementById('tabRec').setAttribute('aria-selected',v==='rec');
+  document.getElementById('vueInst').hidden=v!=='inst';
+  document.getElementById('vueBons').hidden=v!=='bons';
+  document.getElementById('vueRec').hidden=v!=='rec';
+  document.getElementById('filtres').hidden=v!=='inst';
+  document.getElementById('titre').textContent=v==='inst'?'Horaire des installations':v==='bons'?'Cueillettes et livraisons':'Réceptions';
+  if(v==='bons')chargerBons();
+  if(v==='rec')chargerRec();
+}
+document.getElementById('tabInst').onclick=()=>montrerVue('inst');
+document.getElementById('tabBons').onclick=()=>montrerVue('bons');
+document.getElementById('tabRec').onclick=()=>montrerVue('rec');
+const resteBon=b=>(b.colis||[]).reduce((n,g)=>n+g.items.filter(i=>!i.remis&&!i.attente).length,0);
+const srcColis=b=>{const f=(b.colis||[]).map(g=>String(g.groupe||'').split(' · ')[0]).filter(x=>x&&!/^moreau/i.test(x));return !f.length?'':f.length===1?`Selon le bon de livraison de ${f[0]}.`:`Selon les bons de livraison des fournisseurs (${f.join(', ')}).`};
+const aVenir=b=>(b.colis||[]).reduce((n,g)=>n+g.items.filter(i=>!i.remis&&i.attente).length,0);
+function appelerGs(fn,args,ok,ko){
+  if(window.google&&google.script&&google.script.run){
+    google.script.run.withSuccessHandler(ok).withFailureHandler(e=>ko(String(e&&e.message||e)))[fn](...args);
+  }else if(window.MOCK_BONS){ // aperçu local
+    setTimeout(()=>{if(fn==='getBons')ok({ok:true,bons:JSON.parse(JSON.stringify(window.MOCK_BONS))});else if(fn==='getReceptions')ok({ok:true,receptions:JSON.parse(JSON.stringify(window.MOCK_RECS||[]))});else if(fn==='confirmerReception')ok({ok:true,zoho:{ok:true,simulation:true}});else ok({ok:true,num:'BL-'+BONS[0].so+'-1',reste:0,pdf:'#',zoho:{ok:true,simulation:true,notes:['aperçu']}})},150);
+  }else ko('Service indisponible');
+}
+function chargerBons(){
+  appelerGs('getBons',[NIP],r=>{
+    if(!r||!r.ok){document.getElementById('listeBons').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
+    BONS=r.bons||[];rendreBons();
+  },err=>{document.getElementById('listeBons').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+}
+function rendreBons(){
+  const el=document.getElementById('listeBons');el.innerHTML='';
+  const nb=document.getElementById('nbBons');nb.hidden=!BONS.length;nb.textContent=BONS.length;
+  if(!BONS.length){el.innerHTML='<div class="charge">Aucun bon prêt à signer.</div>';return}
+  // regroupés par date de rendez-vous du client (comme l'horaire) ; sans rendez-vous à la fin
+  const auj0=auj(), groupes={}, cles=[];
+  BONS.forEach((b,i)=>{
+    const k=b.rdv&&/^\d{4}-\d{2}-\d{2}$/.test(b.rdv)?b.rdv:'zz';
+    if(!groupes[k]){groupes[k]=[];cles.push(k)}
+    groupes[k].push(i);
+  });
+  cles.sort();
+  cles.forEach(k=>{
+    const h=document.createElement('h3');h.className='jourbons';
+    if(k==='zz')h.textContent='Sans rendez-vous';
+    else{
+      const dif=Math.round((dd(k)-dd(auj0))/86400000);
+      h.textContent=(dif===0?'Aujourd’hui · ':dif===1?'Demain · ':dif<0?'En retard · ':'')+fdl(k);
+      if(dif<0)h.className+=' retard';
+    }
+    el.appendChild(h);
+    groupes[k].forEach(i=>{
+      const b=BONS[i];
+      const c=document.createElement('button');c.type='button';c.className='cbon'+(b.type==='livraison'?' liv':'');
+      if(b.erreur){c.innerHTML=`<b>Bon illisible</b><small>${esc(b.erreur)}</small>`;el.appendChild(c);return}
+      const r=resteBon(b), av=aVenir(b), deja=(b.remises||[]).length||(b.colis||[]).some(g=>g.items.some(i=>i.remis));
+      c.innerHTML=`<span class="typ">${b.type==='livraison'?'Livraison':'Cueillette'}${deja?' · suite':''}</span><b>${esc(b.client)}</b><small>SO-${esc(b.so)}${b.vendeur?' · '+esc(b.vendeur):''}</small><span class="rst">${r} ${r>1?'articles prêts':'article prêt'}</span>${av?`<small>${av} à venir (pas encore reçu)</small>`:''}${b.note?`<small>${esc(b.note)}</small>`:''}`;
+      c.onclick=()=>ouvrirBon(i);el.appendChild(c);
+    });
+  });
+}
+function ouvrirBon(i){
+  const b=BONS[i], dlg=document.getElementById('bon');
+  const num='BL-'+b.so+'-'+((b.remises||[]).length+1);
+  const titre=b.type==='livraison'?'Bon de livraison':'Bon de cueillette';
+  const prec=(b.remises||[]).map(r=>`${r.num} (${fd(r.date)})`).join(', ');
+  let contrat=(b.contrat||[]).map(c=>`<tr><td><b>${esc(c.desc)}</b>${c.detail?`<small>${esc(c.detail)}</small>`:''}</td><td class="num">${esc(c.qte)}</td></tr>`).join('');
+  let colis='';
+  (b.colis||[]).forEach((g,gi)=>{
+    g.items.forEach((it,ii)=>{
+      colis+=it.remis?`<tr class="fait"><td>${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</td><td class="num">${esc(it.qte)}</td><td>${/^\d{4}-\d{2}-\d{2}$/.test(it.remis)?'Remis le '+fd(it.remis):'Déjà remis'}</td></tr>`
+        :it.attente?`<tr class="fait"><td>${esc(it.desc)}</td><td class="num">${esc(it.qte)}</td><td>Pas encore reçu</td></tr>`
+        :`<tr><td><label for="c${gi}_${ii}">${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</label></td><td class="num">${esc(it.qte)}</td><td><input type="checkbox" id="c${gi}_${ii}" data-g="${gi}" data-i="${ii}" checked></td></tr>`;
+    });
+  });
+  dlg.innerHTML=`<div class="feuille">
+    <div class="ent"><div class="m">MOREAU PRS</div><div style="display:flex;gap:12px;align-items:center"><div class="t">${titre}<b id="bonTitre">${num}</b></div><button class="fermer noprint" type="button" aria-label="Fermer" id="bonFermer">×</button></div></div>
+    <div class="zone"><dl style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0">
+      <dt style="color:var(--muted)">Client</dt><dd style="margin:0"><b>${esc(b.client)}</b></dd>
+      ${b.adresse?`<dt style="color:var(--muted)">Adresse</dt><dd style="margin:0">${esc(b.adresse)}</dd>`:''}
+      ${b.telephone?`<dt style="color:var(--muted)">Téléphone</dt><dd style="margin:0">${esc(b.telephone)}</dd>`:''}
+      <dt style="color:var(--muted)">Contrat</dt><dd style="margin:0">SO-${esc(b.so)}</dd>
+      <dt style="color:var(--muted)">Date</dt><dd style="margin:0">${fd(auj())} ${dd(auj()).getUTCFullYear()}${prec?` · bon précédent ${esc(prec)}`:''}</dd>
+    </dl>
+    ${b.note?`<div class="alerte">${esc(b.note)}</div>`:''}</div>
+    <div class="zone"><h3>Contrat</h3>
+      <table class="tb"><tr><th>Description</th><th>Quantité</th></tr>${contrat}</table></div>
+    <div class="zone"><h3>${b.type==='livraison'?'Colis livrés':'Colis remis'}</h3><div class="aide">Décochez ce qui ne part pas aujourd'hui.</div>
+      <table class="tb"><tr><th>Description</th><th>Qté</th><th>Aujourd'hui</th></tr>${colis}</table>
+      <div class="total" id="bonTotal"></div></div>
+    <div class="zone" id="zoneSig"><h3>Réception par le client</h3>
+      <div class="aide">Je confirme avoir reçu les colis cochés, en bon état.</div>
+      <input class="champ" id="bonNom" placeholder="Nom de la personne qui reçoit" autocomplete="off">
+      <canvas class="sig" id="sig" aria-label="Signer ici avec le doigt"></canvas>
+      <div class="sigrow"><span>Signer ici avec le doigt</span><button class="btn" type="button" id="sigEff">Effacer</button></div>
+      <button class="btn plein gros" type="button" id="bonOk">Signer et enregistrer</button>
+      <div id="bonMsg" role="status"></div>
+    </div>
+    <div class="zone noprint" id="zoneFin" hidden></div>
+  </div>`;
+  document.getElementById('bonFermer').onclick=()=>dlg.close();
+  dlg.showModal();
+  // signature
+  const cv=document.getElementById('sig'), ctx=cv.getContext('2d');let trace=false, signe=false;
+  const taille=()=>{const r=cv.getBoundingClientRect(), k=Math.min(2,window.devicePixelRatio||1);cv.width=Math.round(r.width*k);cv.height=Math.round(r.height*k);ctx.setTransform(k,0,0,k,0,0);ctx.lineWidth=2.6;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';ctx.fillStyle='#fff';ctx.fillRect(0,0,r.width,r.height)};
+  taille();
+  const pt=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+  cv.onpointerdown=e=>{trace=true;cv.setPointerCapture(e.pointerId);const[x,y]=pt(e);ctx.beginPath();ctx.moveTo(x,y)};
+  cv.onpointermove=e=>{if(!trace)return;const[x,y]=pt(e);ctx.lineTo(x,y);ctx.stroke();signe=true;verif()};
+  cv.onpointerup=cv.onpointercancel=()=>{trace=false;verif()};cv.addEventListener('touchmove',e=>{if(trace)signe=true},{passive:true});
+  document.getElementById('sigEff').onclick=()=>{signe=false;taille();verif()};
+  const coches=()=>[...dlg.querySelectorAll('input[type=checkbox]:checked')].map(c=>[+c.dataset.g,+c.dataset.i]);
+  const nbTot=resteBon(b);
+  function verif(){
+    const n=coches().length;
+    document.getElementById('bonTotal').textContent=`Remis aujourd'hui : ${n} · Reste à remettre après : ${nbTot-n+aVenir(b)}`;
+    const manque=[];
+    if(!n)manque.push('cocher au moins un colis');
+    if(!document.getElementById('bonNom').value.trim())manque.push('écrire le nom');
+    if(!signe)manque.push('faire signer');
+    const m=document.getElementById('bonMsg');
+    if(m&&!document.getElementById('bonOk').hidden&&!m.querySelector('.alerte'))m.innerHTML=manque.length?`<small style="color:var(--muted)">Pour enregistrer : ${manque.join(', ')}.</small>`:'';
+  }
+  dlg.querySelectorAll('input[type=checkbox]').forEach(c=>c.onchange=verif);
+  ['input','change','keyup','blur'].forEach(ev=>document.getElementById('bonNom').addEventListener(ev,verif));verif();
+  document.getElementById('bonOk').onclick=()=>{
+    const bt=document.getElementById('bonOk');
+    if(!coches().length||!signe||!document.getElementById('bonNom').value.trim()){verif();document.getElementById('bonMsg').innerHTML='<div class="alerte">Il manque : '+[!coches().length?'un colis coché':'',!document.getElementById('bonNom').value.trim()?'le nom':'',!signe?'la signature':''].filter(String).join(', ')+'.</div>';return}
+    bt.disabled=true;bt.textContent='Enregistrement…';
+    // image de signature réduite (fond blanc) pour garder le PDF léger
+    const w=600,h=Math.round(cv.height*w/cv.width),c2=document.createElement('canvas');c2.width=w;c2.height=h;
+    const x2=c2.getContext('2d');x2.fillStyle='#fff';x2.fillRect(0,0,w,h);x2.drawImage(cv,0,0,w,h);
+    appelerGs('signerBon',[NIP,b.fichier,coches(),document.getElementById('bonNom').value.trim(),c2.toDataURL('image/png')],r=>{
+      if(!r||!r.ok){bt.disabled=false;bt.textContent='Signer et enregistrer';document.getElementById('bonMsg').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
+      dlg.querySelectorAll('input[type=checkbox]').forEach(c=>c.disabled=true);
+      document.getElementById('bonNom').disabled=true;cv.style.pointerEvents='none';
+      document.getElementById('sigEff').hidden=true;bt.hidden=true;
+      const z=r.zoho||{};
+      const zone=document.getElementById('zoneFin');zone.hidden=false;
+      zone.innerHTML=`<div class="ok"><b>${esc(r.num)} enregistré</b>
+        <span>${r.reste?r.reste+' colis restent à remettre : le bon reste dans la liste pour la suite.':'Tout est remis.'}</span>
+        ${z.ok?(z.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':'<small>Zoho est à jour (lignes livrées, bon classé dans le dossier du client).</small>'):`<small>Le PDF est sauvegardé, mais Zoho n’a pas été mis à jour : ${esc(z.err||'')}. Sébastien va régler ça.</small>`}
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn plein" type="button" onclick="window.print()">Imprimer la copie client</button><button class="btn" type="button" onclick="document.getElementById('bon').close()">Terminer</button></div></div>`;
+      chargerBons();
+    },err=>{bt.disabled=false;bt.textContent='Signer et enregistrer';document.getElementById('bonMsg').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}. Réessayez.</div>`});
+  };
+}
+
+// ================= Réceptions fournisseurs (François) =================
+let RECS=[];
+function chargerRec(){
+  appelerGs('getReceptions',[NIP],r=>{
+    if(!r||!r.ok){document.getElementById('listeRec').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
+    RECS=r.receptions||[];rendreRec();
+  },err=>{document.getElementById('listeRec').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+}
+function rendreRec(){
+  const el=document.getElementById('listeRec');el.innerHTML='';
+  const nb=document.getElementById('nbRec');nb.hidden=!RECS.length;nb.textContent=RECS.length;
+  if(!RECS.length){el.innerHTML='<div class="charge">Aucune réception à confirmer.</div>';return}
+  RECS.forEach((r,i)=>{
+    const c=document.createElement('button');c.type='button';c.className='cbon rec';
+    const nbc=(r.colis||[]).reduce((n,x)=>n+(+x.qte||0),0);
+    const cli=(r.dossiers&&r.dossiers[0]&&r.dossiers[0].client)||r.clientBon||'';
+    c.innerHTML=`<span class="typ">${esc(r.fournisseur||'Fournisseur ?')}</span><b>${esc(cli||'Client ?')}</b><small>${r.so?'SO-'+esc(r.so):'Pas de n° de SO'}${r.commandeFournisseur?' · '+esc(r.commandeFournisseur):''}</small><span class="rst">${nbc} colis</span>${r.remarques?`<small>⚠ ${esc(r.remarques)}</small>`:''}`;
+    c.onclick=()=>ouvrirRec(i);el.appendChild(c);
+  });
+}
+function ouvrirRec(i){
+  const r=RECS[i], dlg=document.getElementById('rec');
+  const colisBon=(r.colis||[]).map(x=>`<tr><td>${esc(x.desc)}</td><td class="num">${x.qte==null?'?':esc(x.qte)}</td></tr>`).join('');
+  let dossiers='';
+  (r.dossiers||[]).forEach((d,di)=>{
+    dossiers+=`<div class="zone"><h3>${esc(d.nom)}</h3><div class="aide">${esc(d.client||'')} · ${esc(d.type||'')} · cochez ce qui est arrivé ; décochez ce qui manque ou est en rupture (BO).</div>`;
+    d.lignes.forEach((l,li)=>{
+      const deja=l.statut==='Totalement reçu'||l.recueLe;
+      dossiers+=deja?`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`
+      :`<div class="lrec"><input type="checkbox" id="r${di}_${li}" data-d="${di}" data-l="${li}" ${l.propose?'checked':''} style="width:28px;height:28px;accent-color:var(--ok)">
+        <div style="display:grid;gap:6px"><label for="r${di}_${li}"><b>${esc(l.item||'Article')}</b>${l.desc?' — '+esc(l.desc):''} <small style="color:var(--muted)">· ${esc(nomF(l.fournisseur))}</small></label>
+        <textarea id="t${di}_${li}" aria-label="Colis reçus pour cette ligne, un par ligne">${esc(l.colisPropose||'')}</textarea></div></div>`;
+    });
+    dossiers+='</div>';
+  });
+  if(!(r.dossiers||[]).length)dossiers=`<div class="zone"><div class="alerte">${r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'} Ignorez-le, ou avisez Sébastien.</div></div>`;
+  dlg.innerHTML=`<div class="feuille">
+    <div class="ent"><div class="m">RÉCEPTION</div><div style="display:flex;gap:12px;align-items:center"><div class="t">${esc(r.fournisseur||'Fournisseur')}<b id="recTitre">${r.so?'SO-'+esc(r.so):'Sans SO'}</b></div><button class="fermer noprint" type="button" aria-label="Fermer" id="recFermer">×</button></div></div>
+    ${r.remarques?`<div class="zone"><div class="alerte">⚠ ${esc(r.remarques)}</div></div>`:''}
+    <div class="zone"><h3>Colis sur le bon</h3><div class="aide">Lus automatiquement sur le bon du fournisseur. Comparez avec ce qui est arrivé.</div>
+      <table class="tb"><tr><th>Description</th><th>Qté</th></tr>${colisBon||'<tr><td colspan="2">Aucun colis lu.</td></tr>'}</table></div>
+    ${dossiers}
+    <div class="zone"><div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${(r.dossiers||[]).length?'<button class="btn plein gros" type="button" id="recOk">Confirmer la réception</button>':''}
+      <button class="btn" type="button" id="recIgn">Ignorer ce bon</button></div>
+      <div id="recMsg" role="status"></div></div>
+  </div>`;
+  document.getElementById('recFermer').onclick=()=>dlg.close();
+  dlg.showModal();
+  const envoyer=(ignorer)=>{
+    const lignes=[];let dId=(r.dossiers&&r.dossiers[0]&&r.dossiers[0].dossierId)||'';
+    dlg.querySelectorAll('input[type=checkbox]:checked').forEach(c=>{
+      const d=r.dossiers[+c.dataset.d], l=d.lignes[+c.dataset.l];dId=d.dossierId;
+      lignes.push({id:l.id,colis:document.getElementById('t'+c.dataset.d+'_'+c.dataset.l).value.trim()});
+    });
+    if(!ignorer&&!lignes.length){document.getElementById('recMsg').innerHTML='<div class="alerte">Cochez au moins une ligne reçue, ou touchez « Ignorer ce bon ».</div>';return}
+    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
+    document.getElementById('recMsg').innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
+    appelerGs('confirmerReception',[NIP,r.id,dId,lignes,!!ignorer],x=>{
+      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);document.getElementById('recMsg').innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
+      document.getElementById('recMsg').innerHTML=`<div class="ok"><b>${ignorer?'Bon écarté':'Réception confirmée'}</b>${!ignorer&&x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
+      chargerRec();
+    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);document.getElementById('recMsg').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+  };
+  if(document.getElementById('recOk'))document.getElementById('recOk').onclick=()=>envoyer(false);
+  document.getElementById('recIgn').onclick=()=>{if(confirmerIgnorer())envoyer(true)};
+}
+function confirmerIgnorer(){const m=document.getElementById('recMsg');if(m.dataset.ok==='1')return true;m.dataset.ok='1';m.innerHTML='<div class="alerte">Touchez « Ignorer ce bon » encore une fois pour l’écarter.</div>';return false}
+const nomF=n=>{let s=String(n||'').replace(/^[\d\-\s]+-\s*/,'').replace(/\s+(modular enclosures|enclosures)?\s*inc\.?$/i,'').trim();if(s&&s===s.toUpperCase())s=s.toLowerCase().replace(/(^|[\s\-'])\S/g,c=>c.toUpperCase());return s};
+let nipSauve='';try{nipSauve=localStorage.getItem('horaire-nip')||''}catch(e){}
+charger(nipSauve,true); // sans NIP configuré, l'horaire s'ouvre directement; sinon l'écran NIP apparaît
+</script>
+</body>
+</html>
