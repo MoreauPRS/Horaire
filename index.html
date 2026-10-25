@@ -528,7 +528,7 @@ function rendreBons(){
       const c=document.createElement('button');c.type='button';c.className='cbon'+(b.type==='livraison'?' liv':'');
       if(b.erreur){c.innerHTML=`<b>Bon illisible</b><small>${esc(b.erreur)}</small>`;el.appendChild(c);return}
       const r=resteBon(b), av=aVenir(b), deja=(b.remises||[]).length||(b.colis||[]).some(g=>g.items.some(i=>i.remis));
-      c.innerHTML=`<span class="typ">${b.type==='livraison'?'Livraison':'Cueillette'}${deja?' · suite':''}</span><b>${esc(b.client)}</b><small>SO-${esc(b.so)}${b.vendeur?' · '+esc(b.vendeur):''}</small><span class="rst">${r} ${r>1?'articles prêts':'article prêt'}</span>${av?`<small>${av} à venir (pas encore reçu)</small>`:''}${b.note?`<small>${esc(b.note)}</small>`:''}`;
+      c.innerHTML=`<span class="typ">${b.type==='livraison'?'Livraison':'Cueillette'}${deja?' · suite':''}</span><b>${esc(b.nom||b.client)}</b><small>SO-${esc(b.so)}${b.vendeur?' · '+esc(b.vendeur):''}</small><span class="rst">${r} ${r>1?'articles prêts':'article prêt'}</span>${av?`<small>${av} à venir (pas encore reçu)</small>`:''}${b.note?`<small>${esc(b.note)}</small>`:''}`;
       c.onclick=()=>ouvrirBon(i);el.appendChild(c);
     });
   });
