@@ -613,7 +613,7 @@ function ouvrirBon(i){
       const zone=document.getElementById('zoneFin');zone.hidden=false;
       zone.innerHTML=`<div class="ok"><b>${esc(r.num)} enregistré</b>
         <span>${r.reste?r.reste+' colis restent à remettre : le bon reste dans la liste pour la suite.':'Tout est remis.'}</span>
-        ${z.ok?(z.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':'<small>Zoho est à jour (lignes livrées, bon classé dans le dossier du client).</small>'):`<small>Le PDF est sauvegardé, mais Zoho n’a pas été mis à jour : ${esc(z.err||'')}. Sébastien va régler ça.</small>`}
+        ${z.ok?(z.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':'<small>Zoho est à jour (lignes livrées, bon classé dans le dossier du client).</small>'):`<div class="alerte"><b>Attention : Zoho n’a PAS été mis à jour.</b> Le bon signé est sauvegardé. Avisez Sébastien. (${esc(z.err||'')})</div>`}
         <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn plein" type="button" onclick="window.print()">Imprimer la copie client</button><button class="btn" type="button" onclick="document.getElementById('bon').close()">Terminer</button></div></div>`;
       chargerBons();
     },err=>{bt.disabled=false;bt.textContent='Signer et enregistrer';document.getElementById('bonMsg').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}. Réessayez.</div>`});
