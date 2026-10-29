@@ -112,6 +112,10 @@ dialog::backdrop{background:rgba(10,14,18,.55)}
 .lrec textarea{font:inherit;font-size:15px;width:100%;min-height:70px;padding:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--soft);color:var(--fg)}
 .lrec.fait{opacity:.5}
 .cbon.rec{border-left-color:var(--B)}
+.cbon.pret{background:var(--Cbg);border-left-color:var(--ok)}
+.cbon.solde{outline:4px solid var(--today);outline-offset:-2px}
+.cbon .soldeTag{color:var(--today);font-weight:700}
+.cbon .soldeInc{color:var(--B);font-weight:600}
 .onglets{display:flex;gap:8px;flex-wrap:wrap}
 .onglets .btn[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .onglets .btn .nb{background:var(--today);color:#fff;border-radius:999px;padding:0 7px;font-size:13px}
@@ -183,7 +187,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
     <div class="listeBons" id="listeBons"><div class="charge">Chargement…</div></div>
   </section>
   <section id="vueRec" hidden style="display:grid;gap:12px">
-    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, vérifiez les colis, décochez ce qui manque, puis confirmez.</div>
+    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez.</div>
     <div class="listeBons" id="listeRec"><div class="charge">Chargement…</div></div>
   </section>
   <div id="vueInst" style="display:grid;gap:20px">
@@ -525,14 +529,17 @@ function rendreBons(){
     el.appendChild(h);
     groupes[k].forEach(i=>{
       const b=BONS[i];
-      const c=document.createElement('button');c.type='button';c.className='cbon'+(b.type==='livraison'?' liv':'');
+      const c=document.createElement('button');c.type='button';c.className='cbon'+(b.type==='livraison'?' liv':'');const sd=soldeBon(b);
       if(b.erreur){c.innerHTML=`<b>Bon illisible</b><small>${esc(b.erreur)}</small>`;el.appendChild(c);return}
-      const r=resteBon(b), av=aVenir(b), deja=(b.remises||[]).length||(b.colis||[]).some(g=>g.items.some(i=>i.remis));
+      const r=resteBon(b), av=aVenir(b); if(r>0)c.className+=' pret'; if(sd>0)c.className+=' solde'; const deja=(b.remises||[]).length||(b.colis||[]).some(g=>g.items.some(i=>i.remis));
       c.innerHTML=`<span class="typ">${b.type==='livraison'?'Livraison':'Cueillette'}${deja?' · suite':''}</span><b>${esc(b.nom||b.client)}</b><small>SO-${esc(b.so)}${b.vendeur?' · '+esc(b.vendeur):''}</small><span class="rst">${r} ${r>1?'articles prêts':'article prêt'}</span>${av?`<small>${av} à venir (pas encore reçu)</small>`:''}${b.note?`<small>${esc(b.note)}</small>`:''}`;
+      if(sd>0)c.insertAdjacentHTML('beforeend',`<small class="soldeTag">⚠ SOLDE À PAYER : ${argent(b.solde)} · ne pas remettre</small>`);else if(b.solde==null)c.insertAdjacentHTML('beforeend','<small class="soldeInc">Solde non vérifié</small>');
       c.onclick=()=>ouvrirBon(i);el.appendChild(c);
     });
   });
 }
+const argent=n=>Number(n).toLocaleString('fr-CA',{style:'currency',currency:'CAD'});
+const soldeBon=b=>(b.solde==null||b.solde==='')?0:(+b.solde>0.005?+b.solde:0);
 function ouvrirBon(i){
   const b=BONS[i], dlg=document.getElementById('bon');
   const num='BL-'+b.so+'-'+((b.remises||[]).length+1);
@@ -544,7 +551,7 @@ function ouvrirBon(i){
     g.items.forEach((it,ii)=>{
       colis+=it.remis?`<tr class="fait"><td>${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</td><td class="num">${esc(it.qte)}</td><td>${/^\d{4}-\d{2}-\d{2}$/.test(it.remis)?'Remis le '+fd(it.remis):'Déjà remis'}</td></tr>`
         :it.attente?`<tr class="fait"><td>${esc(it.desc)}</td><td class="num">${esc(it.qte)}</td><td>Pas encore reçu</td></tr>`
-        :`<tr><td><label for="c${gi}_${ii}">${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</label></td><td class="num">${esc(it.qte)}</td><td><input type="checkbox" id="c${gi}_${ii}" data-g="${gi}" data-i="${ii}" checked></td></tr>`;
+        :`<tr><td><label for="c${gi}_${ii}">${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</label></td><td class="num">${esc(it.qte)}</td><td><input type="checkbox" id="c${gi}_${ii}" data-g="${gi}" data-i="${ii}"></td></tr>`;
     });
   });
   dlg.innerHTML=`<div class="feuille">
@@ -556,10 +563,11 @@ function ouvrirBon(i){
       <dt style="color:var(--muted)">Contrat</dt><dd style="margin:0">SO-${esc(b.so)}</dd>
       <dt style="color:var(--muted)">Date</dt><dd style="margin:0">${fd(auj())} ${dd(auj()).getUTCFullYear()}${prec?` · bon précédent ${esc(prec)}`:''}</dd>
     </dl>
-    ${b.note?`<div class="alerte">${esc(b.note)}</div>`:''}</div>
+    ${b.note?`<div class="alerte">${esc(b.note)}</div>`:''}
+    ${soldeBon(b)>0?`<div class="alerte" style="border:3px solid var(--today);font-weight:700">⚠ SOLDE À PAYER : ${argent(b.solde)}. Ne pas remettre : renvoyer le dossier au bureau.</div>`:(b.solde==null?'<div class="aide">Solde Books non vérifié pour ce contrat.</div>':'')}</div>
     <div class="zone"><h3>Contrat</h3>
       <table class="tb"><tr><th>Description</th><th>Quantité</th></tr>${contrat}</table></div>
-    <div class="zone"><h3>${b.type==='livraison'?'Colis livrés':'Colis remis'}</h3><div class="aide">Décochez ce qui ne part pas aujourd'hui.</div>
+    <div class="zone"><h3>${b.type==='livraison'?'Colis livrés':'Colis remis'}</h3><div class="aide">Cochez chaque colis à mesure que vous le remettez.</div>
       <table class="tb"><tr><th>Description</th><th>Qté</th><th>Aujourd'hui</th></tr>${colis}</table>
       <div class="total" id="bonTotal"></div></div>
     <div class="zone" id="zoneSig"><h3>Réception par le client</h3>
@@ -642,47 +650,84 @@ function rendreRec(){
 }
 function ouvrirRec(i){
   const r=RECS[i], dlg=document.getElementById('rec');
-  const colisBon=(r.colis||[]).map(x=>`<tr><td>${esc(x.desc)}</td><td class="num">${x.qte==null?'?':esc(x.qte)}</td></tr>`).join('');
-  let dossiers='';
-  (r.dossiers||[]).forEach((d,di)=>{
-    dossiers+=`<div class="zone"><h3>${esc(d.nom)}</h3><div class="aide">${esc(d.client||'')} · ${esc(d.type||'')} · cochez ce qui est arrivé ; décochez ce qui manque ou est en rupture (BO).</div>`;
-    d.lignes.forEach((l,li)=>{
-      const deja=l.statut==='Totalement reçu'||l.recueLe;
-      dossiers+=deja?`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`
-      :`<div class="lrec"><input type="checkbox" id="r${di}_${li}" data-d="${di}" data-l="${li}" ${l.propose?'checked':''} style="width:28px;height:28px;accent-color:var(--ok)">
-        <div style="display:grid;gap:6px"><label for="r${di}_${li}"><b>${esc(l.item||'Article')}</b>${l.desc?' — '+esc(l.desc):''} <small style="color:var(--muted)">· ${esc(nomF(l.fournisseur))}</small></label>
-        <textarea id="t${di}_${li}" aria-label="Colis reçus pour cette ligne, un par ligne">${esc(l.colisPropose||'')}</textarea></div></div>`;
-    });
-    dossiers+='</div>';
-  });
-  if(!(r.dossiers||[]).length)dossiers=`<div class="zone"><div class="alerte">${r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'} Ignorez-le, ou avisez Sébastien.</div></div>`;
+  // lignes ouvertes du dossier (celles qui peuvent recevoir des colis)
+  const dos=(r.dossiers||[]).filter(d=>d.lignes.some(l=>!(l.statut==='Totalement reçu'||l.recueLe)))[0]||null;
+  const ouvertes=dos?dos.lignes.filter(l=>!(l.statut==='Totalement reçu'||l.recueLe)):[];
+  const deja=dos?dos.lignes.filter(l=>l.statut==='Totalement reçu'||l.recueLe):[];
+  const ligneDe=c=>{ // ligne proposée pour ce colis (anciens bons sans ligneId : première ligne proposée)
+    if(c.ligneId&&ouvertes.some(l=>String(l.id)===String(c.ligneId)))return String(c.ligneId);
+    const p=ouvertes.filter(l=>l.propose)[0]||ouvertes[0];return p?String(p.id):'';
+  };
+  const lignesColis=(r.colis||[]).map((c,ci)=>{
+    const sel=ouvertes.length>1?`<select class="rlig" data-c="${ci}" aria-label="Ligne de commande de ce colis">${ouvertes.map(l=>`<option value="${esc(l.id)}" ${String(l.id)===ligneDe(c)?'selected':''}>${esc(l.item||'Article')}</option>`).join('')}</select>`
+      :`<small style="color:var(--muted)">${ouvertes[0]?esc(ouvertes[0].item||''):''}</small>`;
+    return `<tr><td style="width:44px"><input type="checkbox" class="rck" data-c="${ci}" aria-label="Reçu : ${esc(c.desc)}" style="width:28px;height:28px;accent-color:var(--ok)"></td>
+      <td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td>${dos?sel:''}</td></tr>`;
+  }).join('');
+  const dejaHtml=deja.map(l=>`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`).join('');
+  const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>`:'';
+  const corps=!dos||!ouvertes.length
+    ?`<div class="zone"><div class="alerte">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Ignorez-le, ou avisez Sébastien.</div></div>`
+    :`<div class="zone"><h3>Colis sur le bon</h3><div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>${entete}
+      <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>Ligne de commande</th></tr>${lignesColis||'<tr><td colspan="4">Aucun colis lu.</td></tr>'}</table>
+      <div id="recTot" class="aide" style="margin-top:6px"></div>${dejaHtml}</div>
+    <div class="zone"><label style="display:flex;gap:10px;align-items:center;font-weight:600"><input type="checkbox" id="recBris" style="width:28px;height:28px;accent-color:var(--warn,#c0392b)"> ⚠ Bris ou problème de qualité (égratignure, moustiquaire à régler…)</label>
+      <div id="recBrisZone" hidden style="margin-top:8px"><textarea id="recBrisTxt" rows="3" placeholder="Décrivez le problème (obligatoire) : lequel, sur quel article…" style="width:100%"></textarea></div>
+      <div style="margin-top:10px"><button class="btn" type="button" id="recComBtn">💬 Ajouter un commentaire</button> <small id="recComVu" style="color:var(--muted)"></small></div></div>`;
   dlg.innerHTML=`<div class="feuille">
     <div class="ent"><div class="m">RÉCEPTION</div><div style="display:flex;gap:12px;align-items:center"><div class="t">${esc(r.fournisseur||'Fournisseur')}<b id="recTitre">${r.so?'SO-'+esc(r.so):'Sans SO'}</b></div><button class="fermer noprint" type="button" aria-label="Fermer" id="recFermer">×</button></div></div>
     ${r.remarques?`<div class="zone"><div class="alerte">⚠ ${esc(r.remarques)}</div></div>`:''}
-    <div class="zone"><h3>Colis sur le bon</h3><div class="aide">Lus automatiquement sur le bon du fournisseur. Comparez avec ce qui est arrivé.</div>
-      <table class="tb"><tr><th>Description</th><th>Qté</th></tr>${colisBon||'<tr><td colspan="2">Aucun colis lu.</td></tr>'}</table></div>
-    ${dossiers}
+    ${corps}
     <div class="zone"><div style="display:flex;gap:10px;flex-wrap:wrap">
-      ${(r.dossiers||[]).length?'<button class="btn plein gros" type="button" id="recOk">Confirmer la réception</button>':''}
+      ${dos&&ouvertes.length?'<button class="btn plein gros" type="button" id="recOk">Enregistrer</button>':''}
       <button class="btn" type="button" id="recIgn">Ignorer ce bon</button></div>
       <div id="recMsg" role="status"></div></div>
+    <dialog id="recCom"><div class="feuille"><div class="zone"><h3>Commentaire</h3><textarea id="recComTxt" rows="5" style="width:100%" placeholder="Ex. : colis ouvert, boîte écrasée, à voir avec le fournisseur…"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn plein" type="button" id="recComOk">OK</button><button class="btn" type="button" id="recComAnn">Annuler</button></div></div></div></dialog>
   </div>`;
   document.getElementById('recFermer').onclick=()=>dlg.close();
   dlg.showModal();
+  const cks=()=>[...dlg.querySelectorAll('.rck')];
+  const maj=()=>{const t=document.getElementById('recTot');if(t)t.textContent=cks().filter(c=>c.checked).length+' colis cochés sur '+cks().length+'.'};
+  cks().forEach(c=>c.onchange=maj);maj();
+  if(document.getElementById('recBris'))document.getElementById('recBris').onchange=e=>{document.getElementById('recBrisZone').hidden=!e.target.checked};
+  if(document.getElementById('recComBtn')){
+    const cd=document.getElementById('recCom'),ct=document.getElementById('recComTxt');
+    document.getElementById('recComBtn').onclick=()=>cd.showModal();
+    document.getElementById('recComOk').onclick=()=>{document.getElementById('recComVu').textContent=ct.value.trim()?'Commentaire ajouté.':'';cd.close()};
+    document.getElementById('recComAnn').onclick=()=>cd.close();
+  }
   const envoyer=(ignorer)=>{
-    const lignes=[];let dId=(r.dossiers&&r.dossiers[0]&&r.dossiers[0].dossierId)||'';
-    dlg.querySelectorAll('input[type=checkbox]:checked').forEach(c=>{
-      const d=r.dossiers[+c.dataset.d], l=d.lignes[+c.dataset.l];dId=d.dossierId;
-      lignes.push({id:l.id,colis:document.getElementById('t'+c.dataset.d+'_'+c.dataset.l).value.trim()});
-    });
-    if(!ignorer&&!lignes.length){document.getElementById('recMsg').innerHTML='<div class="alerte">Cochez au moins une ligne reçue, ou touchez « Ignorer ce bon ».</div>';return}
+    const msg=document.getElementById('recMsg');
+    let lignes=[],extra={};
+    if(!ignorer){
+      const parLigne={};
+      cks().forEach(c=>{
+        const ci=+c.dataset.c, co=r.colis[ci], sel=dlg.querySelector('.rlig[data-c="'+ci+'"]');
+        const lid=sel?sel.value:ligneDe(co);
+        const g=parLigne[lid]=parLigne[lid]||{ok:[],manque:[]};
+        const t=(co.qte==null?'?':co.qte)+' '+co.desc;
+        (c.checked?g.ok:g.manque).push(t);
+      });
+      const manquants=[];
+      Object.keys(parLigne).forEach(lid=>{
+        const g=parLigne[lid];
+        if(g.ok.length)lignes.push({id:lid,colis:g.ok.join('\n'),complet:!g.manque.length});
+        g.manque.forEach(t=>manquants.push(t));
+      });
+      if(!lignes.length){msg.innerHTML='<div class="alerte">Cochez au moins un colis reçu, ou touchez « Ignorer ce bon ».</div>';return}
+      const bris=document.getElementById('recBris').checked, txtBris=document.getElementById('recBrisTxt').value.trim();
+      if(bris&&!txtBris){msg.innerHTML='<div class="alerte">Décrivez le bris ou le problème de qualité.</div>';return}
+      const com=document.getElementById('recComTxt').value.trim();
+      extra={bris:bris,commentaire:[bris?'BRIS / QUALITÉ : '+txtBris:'',com].filter(String).join('\n'),manquants:manquants.join('\n')};
+    }
     dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
-    document.getElementById('recMsg').innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
-    appelerGs('confirmerReception',[NIP,r.id,dId,lignes,!!ignorer],x=>{
-      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);document.getElementById('recMsg').innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
-      document.getElementById('recMsg').innerHTML=`<div class="ok"><b>${ignorer?'Bon écarté':'Réception confirmée'}</b>${!ignorer&&x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
+    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
+    appelerGs('confirmerReception',[NIP,r.id,dos?dos.dossierId:'',lignes,!!ignorer,extra],x=>{
+      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
+      msg.innerHTML=`<div class="ok"><b>${ignorer?'Bon écarté':'Réception enregistrée'}</b>${!ignorer&&x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
       chargerRec();
-    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);document.getElementById('recMsg').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
   };
   if(document.getElementById('recOk'))document.getElementById('recOk').onclick=()=>envoyer(false);
   document.getElementById('recIgn').onclick=()=>{if(confirmerIgnorer())envoyer(true)};
