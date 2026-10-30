@@ -124,6 +124,9 @@ dialog::backdrop{background:rgba(10,14,18,.55)}
 .cbon.liv{border-left-color:var(--A)}
 .cbon b{font-size:17px}.cbon small{color:var(--muted)}
 .cbon .typ{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted)}
+.cbon .empl{color:var(--ink,#111);font-weight:700}
+.emp{background:var(--soft,#eef);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font:inherit;font-size:13px;margin-top:4px;cursor:pointer;color:inherit}
+.rempl{width:90px;font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px}
 .cbon .rst{font-family:var(--display);font-size:20px;font-weight:700}
 dialog.plein{width:min(860px,100%);max-height:100%;height:100%;border-radius:0}
 @media (min-width:900px){dialog.plein{height:auto;max-height:calc(100% - 32px);border-radius:14px}}
@@ -204,7 +207,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes.</footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 29 oct. 19 h (emplacement dans la shop).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -366,6 +369,7 @@ function ouvrirFiche(x){
       <dt>Produits</dt><dd>${esc(x.prod||'—')}</dd>
       <dt>Durée</dt><dd>${dur} · ${dates}</dd>
       <dt>Matériel</dt><dd>${mat}</dd>
+      ${x.empl?`<dt>Emplacement</dt><dd><b>📍 ${esc(x.empl)}</b></dd>`:''}
     </dl>
     <div class="actions">
       ${adr?`<a class="btn plein" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adr)}">Itinéraire</a>`:''}
@@ -397,7 +401,7 @@ function chercher(defiler){
     const b=document.createElement('button');b.type='button';b.className='carte';
     b.style.background=`var(--${x.eq}bg)`;b.style.borderLeft=`5px solid var(--${x.eq})`;
     const dur=x.demi<2?'½ journée':(x.demi/2)+(x.demi>2?' jours':' jour');
-    b.innerHTML=`<b>${esc(x.nom)}</b><small>${esc(x.prod||'')}</small><div class="d">${fdl(x.debut)}${x.fin!==x.debut?' au '+fdl(x.fin):''}</div><small>Équipe ${x.eq} · ${dur}${x.conf?' · matériel à recevoir, la date peut bouger':' · matériel reçu'}</small>`;
+    b.innerHTML=`<b>${esc(x.nom)}</b><small>${esc(x.prod||'')}</small><div class="d">${fdl(x.debut)}${x.fin!==x.debut?' au '+fdl(x.fin):''}</div><small>Équipe ${x.eq} · ${dur}${x.conf?' · matériel à recevoir, la date peut bouger':' · matériel reçu'}</small>${x.empl?`<small>📍 ${esc(x.empl)}</small>`:''}`;
     b.onclick=()=>{allerA(x.id);ouvrirFiche(x)};
     rep.appendChild(b);
   });
@@ -489,12 +493,14 @@ document.getElementById('tabLiv').onclick=()=>montrerVue('liv');
 document.getElementById('tabRec').onclick=()=>montrerVue('rec');
 const resteBon=b=>(b.colis||[]).reduce((n,g)=>n+g.items.filter(i=>!i.remis&&!i.attente).length,0);
 const srcColis=b=>{const f=(b.colis||[]).map(g=>String(g.groupe||'').split(' · ')[0]).filter(x=>x&&!/^moreau/i.test(x));return !f.length?'':f.length===1?`Selon le bon de livraison de ${f[0]}.`:`Selon les bons de livraison des fournisseurs (${f.join(', ')}).`};
+const emplListe=t=>String(t||'').split(',').map(x=>x.trim()).filter(Boolean);
+const emplBon=b=>{const o=[];(b.colis||[]).forEach(g=>g.items.forEach(i=>{if(!i.remis)emplListe(i.empl).forEach(e=>{if(o.indexOf(e)<0)o.push(e)})}));return o.join(', ')};
 const aVenir=b=>(b.colis||[]).reduce((n,g)=>n+g.items.filter(i=>!i.remis&&i.attente).length,0);
 function appelerGs(fn,args,ok,ko){
   if(window.google&&google.script&&google.script.run){
     google.script.run.withSuccessHandler(ok).withFailureHandler(e=>ko(String(e&&e.message||e)))[fn](...args);
   }else if(window.MOCK_BONS){ // aperçu local
-    setTimeout(()=>{if(fn==='getBons')ok({ok:true,bons:JSON.parse(JSON.stringify(window.MOCK_BONS))});else if(fn==='getReceptions')ok({ok:true,receptions:JSON.parse(JSON.stringify(window.MOCK_RECS||[]))});else if(fn==='confirmerReception')ok({ok:true,zoho:{ok:true,simulation:true}});else ok({ok:true,num:'BL-'+BONS[0].so+'-1',reste:0,pdf:'#',zoho:{ok:true,simulation:true,notes:['aperçu']}})},150);
+    setTimeout(()=>{if(fn==='getBons')ok({ok:true,bons:JSON.parse(JSON.stringify(window.MOCK_BONS))});else if(fn==='getReceptions')ok({ok:true,receptions:JSON.parse(JSON.stringify(window.MOCK_RECS||[]))});else if(fn==='confirmerReception')ok({ok:true,zoho:{ok:true,simulation:true}});else if(fn==='changerEmplacement')ok({ok:true,emplacement:args[3]});else ok({ok:true,num:'BL-'+BONS[0].so+'-1',reste:0,pdf:'#',zoho:{ok:true,simulation:true,notes:['aperçu']}})},150);
   }else ko('Service indisponible');
 }
 function chargerBons(){
@@ -532,7 +538,7 @@ function rendreBons(){
       const c=document.createElement('button');c.type='button';c.className='cbon'+(b.type==='livraison'?' liv':'');const sd=soldeBon(b);
       if(b.erreur){c.innerHTML=`<b>Bon illisible</b><small>${esc(b.erreur)}</small>`;el.appendChild(c);return}
       const r=resteBon(b), av=aVenir(b); if(r>0)c.className+=' pret'; if(sd>0)c.className+=' solde'; const deja=(b.remises||[]).length||(b.colis||[]).some(g=>g.items.some(i=>i.remis));
-      c.innerHTML=`<span class="typ">${b.type==='livraison'?'Livraison':'Cueillette'}${deja?' · suite':''}</span><b>${esc(b.nom||b.client)}</b><small>SO-${esc(b.so)}${b.vendeur?' · '+esc(b.vendeur):''}</small><span class="rst">${r} ${r>1?'articles prêts':'article prêt'}</span>${av?`<small>${av} à venir (pas encore reçu)</small>`:''}${b.note?`<small>${esc(b.note)}</small>`:''}`;
+      c.innerHTML=`<span class="typ">${b.type==='livraison'?'Livraison':'Cueillette'}${deja?' · suite':''}</span><b>${esc(b.nom||b.client)}</b><small>SO-${esc(b.so)}${b.vendeur?' · '+esc(b.vendeur):''}</small><span class="rst">${r} ${r>1?'articles prêts':'article prêt'}</span>${emplBon(b)?`<small class="empl">📍 ${esc(emplBon(b))}</small>`:''}${av?`<small>${av} à venir (pas encore reçu)</small>`:''}${b.note?`<small>${esc(b.note)}</small>`:''}`;
       if(sd>0)c.insertAdjacentHTML('beforeend',`<small class="soldeTag">⚠ SOLDE À PAYER : ${argent(b.solde)} · ne pas remettre</small>`);else if(b.solde==null)c.insertAdjacentHTML('beforeend','<small class="soldeInc">Solde non vérifié</small>');
       c.onclick=()=>ouvrirBon(i);el.appendChild(c);
     });
@@ -551,7 +557,7 @@ function ouvrirBon(i){
     g.items.forEach((it,ii)=>{
       colis+=it.remis?`<tr class="fait"><td>${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</td><td class="num">${esc(it.qte)}</td><td>${/^\d{4}-\d{2}-\d{2}$/.test(it.remis)?'Remis le '+fd(it.remis):'Déjà remis'}</td></tr>`
         :it.attente?`<tr class="fait"><td>${esc(it.desc)}</td><td class="num">${esc(it.qte)}</td><td>Pas encore reçu</td></tr>`
-        :`<tr><td><label for="c${gi}_${ii}">${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</label></td><td class="num">${esc(it.qte)}</td><td><input type="checkbox" id="c${gi}_${ii}" data-g="${gi}" data-i="${ii}"></td></tr>`;
+        :`<tr><td><label for="c${gi}_${ii}">${esc(it.desc)}${it.detail?`<small>${esc(it.detail)}</small>`:''}</label><button type="button" class="emp" data-l="${esc(it.ligne)}">📍 ${esc(it.empl||'Emplacement ?')} ✎</button></td><td class="num">${esc(it.qte)}</td><td><input type="checkbox" id="c${gi}_${ii}" data-g="${gi}" data-i="${ii}"></td></tr>`;
     });
   });
   dlg.innerHTML=`<div class="feuille">
@@ -561,6 +567,7 @@ function ouvrirBon(i){
       ${b.adresse?`<dt style="color:var(--muted)">Adresse</dt><dd style="margin:0">${esc(b.adresse)}</dd>`:''}
       ${b.telephone?`<dt style="color:var(--muted)">Téléphone</dt><dd style="margin:0">${esc(b.telephone)}</dd>`:''}
       <dt style="color:var(--muted)">Contrat</dt><dd style="margin:0">SO-${esc(b.so)}</dd>
+      ${emplBon(b)?`<dt style="color:var(--muted)">Emplacement</dt><dd style="margin:0"><b>📍 ${esc(emplBon(b))}</b></dd>`:''}
       <dt style="color:var(--muted)">Date</dt><dd style="margin:0">${fd(auj())} ${dd(auj()).getUTCFullYear()}${prec?` · bon précédent ${esc(prec)}`:''}</dd>
     </dl>
     ${b.note?`<div class="alerte">${esc(b.note)}</div>`:''}
@@ -581,6 +588,18 @@ function ouvrirBon(i){
     <div class="zone noprint" id="zoneFin" hidden></div>
   </div>`;
   document.getElementById('bonFermer').onclick=()=>dlg.close();
+  dlg.querySelectorAll('.emp').forEach(bt=>bt.onclick=e=>{
+    e.preventDefault();
+    const lid=bt.dataset.l, it0=(b.colis||[]).reduce((a,g)=>a||g.items.find(i=>String(i.ligne)===String(lid)),null);
+    const v=window.prompt('Emplacement dans la shop (ex. A2, B0). Plusieurs : A2, B0',it0&&it0.empl||'');
+    if(v===null)return;
+    bt.disabled=true;bt.textContent='Enregistrement…';
+    appelerGs('changerEmplacement',[NIP,b.dossierId,lid,v.trim()],x=>{
+      if(!x||!x.ok){bt.disabled=false;bt.textContent='Erreur : '+(x&&x.err||'?');return}
+      (b.colis||[]).forEach(g=>g.items.forEach(i=>{if(String(i.ligne)===String(lid))i.empl=v.trim()}));
+      rendreBons();try{dlg.close()}catch(e){}ouvrirBon(i);
+    },err=>{bt.disabled=false;bt.textContent='Connexion impossible'});
+  });
   dlg.showModal();
   // signature
   const cv=document.getElementById('sig'), ctx=cv.getContext('2d');let trace=false, signe=false;
@@ -662,14 +681,15 @@ function ouvrirRec(i){
     const sel=ouvertes.length>1?`<select class="rlig" data-c="${ci}" aria-label="Ligne de commande de ce colis">${ouvertes.map(l=>`<option value="${esc(l.id)}" ${String(l.id)===ligneDe(c)?'selected':''}>${esc(l.item||'Article')}</option>`).join('')}</select>`
       :`<small style="color:var(--muted)">${ouvertes[0]?esc(ouvertes[0].item||''):''}</small>`;
     return `<tr><td style="width:44px"><input type="checkbox" class="rck" data-c="${ci}" aria-label="Reçu : ${esc(c.desc)}" style="width:28px;height:28px;accent-color:var(--ok)"></td>
-      <td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td>${dos?sel:''}</td></tr>`;
+      <td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td><input class="rempl" data-c="${ci}" placeholder="A2" maxlength="20" aria-label="Emplacement dans la shop" autocapitalize="characters"></td><td>${dos?sel:''}</td></tr>`;
   }).join('');
   const dejaHtml=deja.map(l=>`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`).join('');
   const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>`:'';
   const corps=!dos||!ouvertes.length
     ?`<div class="zone"><div class="alerte">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Ignorez-le, ou avisez Sébastien.</div></div>`
     :`<div class="zone"><h3>Colis sur le bon</h3><div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>${entete}
-      <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>Ligne de commande</th></tr>${lignesColis||'<tr><td colspan="4">Aucun colis lu.</td></tr>'}</table>
+      <div style="margin:8px 0"><label style="font-weight:600">📍 Emplacement dans la shop pour tout le bon : <input class="rempl" id="recEmplTous" placeholder="A2" maxlength="20" autocapitalize="characters"></label> <small style="color:var(--muted)">(modifiable colis par colis)</small></div>
+      <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>📍</th><th>Ligne de commande</th></tr>${lignesColis||'<tr><td colspan="5">Aucun colis lu.</td></tr>'}</table>
       <div id="recTot" class="aide" style="margin-top:6px"></div>${dejaHtml}</div>
     <div class="zone"><label style="display:flex;gap:10px;align-items:center;font-weight:600"><input type="checkbox" id="recBris" style="width:28px;height:28px;accent-color:var(--warn,#c0392b)"> ⚠ Bris ou problème de qualité (égratignure, moustiquaire à régler…)</label>
       <div id="recBrisZone" hidden style="margin-top:8px"><textarea id="recBrisTxt" rows="3" placeholder="Décrivez le problème (obligatoire) : lequel, sur quel article…" style="width:100%"></textarea></div>
@@ -705,14 +725,16 @@ function ouvrirRec(i){
       cks().forEach(c=>{
         const ci=+c.dataset.c, co=r.colis[ci], sel=dlg.querySelector('.rlig[data-c="'+ci+'"]');
         const lid=sel?sel.value:ligneDe(co);
-        const g=parLigne[lid]=parLigne[lid]||{ok:[],manque:[]};
+        const g=parLigne[lid]=parLigne[lid]||{ok:[],manque:[],empl:[]};
+        const ev=(dlg.querySelector('.rempl[data-c="'+ci+'"]')||{value:''}).value.trim().toUpperCase();
+        if(c.checked&&ev&&g.empl.indexOf(ev)<0)g.empl.push(ev);
         const t=(co.qte==null?'?':co.qte)+' '+co.desc;
         (c.checked?g.ok:g.manque).push(t);
       });
       const manquants=[];
       Object.keys(parLigne).forEach(lid=>{
         const g=parLigne[lid];
-        if(g.ok.length)lignes.push({id:lid,colis:g.ok.join('\n'),complet:!g.manque.length});
+        if(g.ok.length)lignes.push({id:lid,colis:g.ok.join('\n'),complet:!g.manque.length,emplacement:g.empl.join(', ')});
         g.manque.forEach(t=>manquants.push(t));
       });
       if(!lignes.length){msg.innerHTML='<div class="alerte">Cochez au moins un colis reçu, ou touchez « Ignorer ce bon ».</div>';return}
@@ -729,6 +751,7 @@ function ouvrirRec(i){
       chargerRec();
     },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
   };
+  if(document.getElementById('recEmplTous'))document.getElementById('recEmplTous').oninput=e=>dlg.querySelectorAll('.rempl[data-c]').forEach(x=>x.value=e.target.value);
   if(document.getElementById('recOk'))document.getElementById('recOk').onclick=()=>envoyer(false);
   document.getElementById('recIgn').onclick=()=>{if(confirmerIgnorer())envoyer(true)};
 }
