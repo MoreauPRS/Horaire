@@ -207,7 +207,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 31 oct. 10 h (emplacement par article).</span></footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 31 oct. 11 h (réception sans dossier).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -685,8 +685,14 @@ function ouvrirRec(i){
   }).join('');
   const dejaHtml=deja.map(l=>`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`).join('');
   const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>`:'';
+  const sdCats=[['sr','Service request (SR)'],['stock','Commande de stock'],['vitrerie','Vitrerie'],['inventaire','Inventaire / quincaillerie'],['emballage','Matériel d’emballage'],['moulure','Moulure en vrac'],['autre','Autre']];
+  const sdHtml=`<div class="zone"><h3>Réception sans dossier</h3><div class="aide">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Écrivez un commentaire pour l’enregistrer (le bon sera classé dans le dossier général), ou ignorez ce bon.</div>
+      <table class="tb"><tr><th>Qté</th><th>Description</th></tr>${(r.colis||[]).map(c=>`<tr><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td>${esc(c.desc)}</td></tr>`).join('')||'<tr><td colspan="2">Aucun colis lu.</td></tr>'}</table>
+      <label style="font-weight:600;display:block;margin-top:10px">Type de livraison <select id="sdCat" style="font:inherit;padding:8px">${sdCats.map(c=>`<option value="${c[0]}" ${c[0]===(r.categorie||(r.so?'autre':'stock'))?'selected':''}>${c[1]}</option>`).join('')}</select></label>
+      <label style="font-weight:600;display:block;margin-top:10px">Commentaire (obligatoire)<textarea id="sdTxt" rows="4" style="width:100%" placeholder="Ex. : vitres pour Collins, rangées au rack B…"></textarea></label>
+      <label style="font-weight:600;display:block;margin-top:10px">📍 Emplacement <input class="rempl" id="sdEmpl" placeholder="A2" maxlength="20" autocapitalize="characters"></label></div>`;
   const corps=!dos||!ouvertes.length
-    ?`<div class="zone"><div class="alerte">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Ignorez-le, ou avisez Sébastien.</div></div>`
+    ?sdHtml
     :`<div class="zone"><h3>Colis sur le bon</h3><div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>${entete}
       <div style="margin:8px 0"><label style="font-weight:600">📍 Emplacement dans la shop pour tout le bon : <input class="rempl" id="recEmplTous" placeholder="A2" maxlength="20" autocapitalize="characters"></label> <small style="color:var(--muted)">(modifiable colis par colis)</small></div>
       <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>📍</th><th>Ligne de commande</th></tr>${lignesColis||'<tr><td colspan="5">Aucun colis lu.</td></tr>'}</table>
@@ -700,6 +706,7 @@ function ouvrirRec(i){
     ${corps}
     <div class="zone"><div style="display:flex;gap:10px;flex-wrap:wrap">
       ${dos&&ouvertes.length?'<button class="btn plein gros" type="button" id="recOk">Enregistrer</button>':''}
+      ${dos&&ouvertes.length?'':'<button class="btn plein gros" type="button" id="recSd">Enregistrer sans dossier</button>'}
       <button class="btn" type="button" id="recIgn">Ignorer ce bon</button></div>
       <div id="recMsg" role="status"></div></div>
     <dialog id="recCom"><div class="feuille"><div class="zone"><h3>Commentaire</h3><textarea id="recComTxt" rows="5" style="width:100%" placeholder="Ex. : colis ouvert, boîte écrasée, à voir avec le fournisseur…"></textarea>
@@ -752,6 +759,20 @@ function ouvrirRec(i){
     },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
   };
   if(document.getElementById('recEmplTous'))document.getElementById('recEmplTous').oninput=e=>dlg.querySelectorAll('.rempl[data-c]').forEach(x=>x.value=e.target.value);
+  const envoyerSd=()=>{
+    const msg=document.getElementById('recMsg');
+    const txt=document.getElementById('sdTxt').value.trim(), cat=document.getElementById('sdCat').value, em=document.getElementById('sdEmpl').value.trim().toUpperCase();
+    if(!txt){msg.innerHTML='<div class="alerte">Écrivez un commentaire (ce que c’est, pour qui, où c’est rangé).</div>';return}
+    const extra={bris:false,commentaire:txt+(em?'\nEmplacement : '+em:''),manquants:'',categorie:cat};
+    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
+    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
+    appelerGs('confirmerReception',[NIP,r.id,'',[],false,extra],x=>{
+      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
+      msg.innerHTML=`<div class="ok"><b>Réception enregistrée</b>${x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été déposé.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
+      chargerRec();
+    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+  };
+  if(document.getElementById('recSd'))document.getElementById('recSd').onclick=envoyerSd;
   if(document.getElementById('recOk'))document.getElementById('recOk').onclick=()=>envoyer(false);
   document.getElementById('recIgn').onclick=()=>{if(confirmerIgnorer())envoyer(true)};
 }
