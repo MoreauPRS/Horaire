@@ -670,9 +670,13 @@ function rendreRec(){
 function ouvrirRec(i){
   const r=RECS[i], dlg=document.getElementById('rec');
   // lignes ouvertes du dossier (celles qui peuvent recevoir des colis)
-  const dos=(r.dossiers||[]).filter(d=>d.lignes.some(l=>!(l.statut==='Totalement reçu'||l.recueLe)))[0]||null;
-  const ouvertes=dos?dos.lignes.filter(l=>!(l.statut==='Totalement reçu'||l.recueLe)):[];
-  const deja=dos?dos.lignes.filter(l=>l.statut==='Totalement reçu'||l.recueLe):[];
+  // dossier avec des lignes ouvertes; sinon le premier dossier trouvé (lignes déjà reçues : on peut quand même cocher les colis)
+  const recue=l=>l.statut==='Totalement reçu'||!!l.recueLe;
+  const dos=(r.dossiers||[]).filter(d=>(d.lignes||[]).some(l=>!recue(l)))[0]||(r.dossiers||[]).filter(d=>(d.lignes||[]).length)[0]||null;
+  const lesOuvertes=dos?dos.lignes.filter(l=>!recue(l)):[];
+  const toutRecu=!!dos&&!lesOuvertes.length;
+  const ouvertes=toutRecu?dos.lignes:lesOuvertes;
+  const deja=dos&&!toutRecu?dos.lignes.filter(recue):[];
   const ligneDe=c=>{ // ligne proposée pour ce colis (anciens bons sans ligneId : première ligne proposée)
     if(c.ligneId&&ouvertes.some(l=>String(l.id)===String(c.ligneId)))return String(c.ligneId);
     const p=ouvertes.filter(l=>l.propose)[0]||ouvertes[0];return p?String(p.id):'';
@@ -684,10 +688,12 @@ function ouvrirRec(i){
       <td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td><input class="rempl" data-c="${ci}" placeholder="A2" maxlength="20" aria-label="Emplacement dans la shop" autocapitalize="characters"></td><td>${dos?sel:''}</td></tr>`;
   }).join('');
   const dejaHtml=deja.map(l=>`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`).join('');
-  const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>`:'';
+  const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>${toutRecu?'<div class="aide" style="color:var(--muted)">Ces lignes sont déjà marquées reçues : cochez quand même les colis pour qu’ils apparaissent sur le bon du client.</div>':''}`:'';
   const sdCats=[['sr','Service request (SR)'],['stock','Commande de stock'],['vitrerie','Vitrerie'],['inventaire','Inventaire / quincaillerie'],['emballage','Matériel d’emballage'],['moulure','Moulure en vrac'],['autre','Autre']];
   const sdHtml=`<div class="zone"><h3>Réception sans dossier</h3><div class="aide">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Écrivez un commentaire pour l’enregistrer (le bon sera classé dans le dossier général), ou ignorez ce bon.</div>
-      <table class="tb"><tr><th>Qté</th><th>Description</th></tr>${(r.colis||[]).map(c=>`<tr><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td>${esc(c.desc)}</td></tr>`).join('')||'<tr><td colspan="2">Aucun colis lu.</td></tr>'}</table>
+      <div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>
+      <table class="tb"><tr><th></th><th>Description</th><th>Qté</th></tr>${(r.colis||[]).map((c,ci)=>`<tr><td style="width:44px"><input type="checkbox" class="rck" data-c="${ci}" aria-label="Reçu : ${esc(c.desc)}" style="width:28px;height:28px;accent-color:var(--ok)"></td><td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td></tr>`).join('')||'<tr><td colspan="3">Aucun colis lu.</td></tr>'}</table>
+      <div id="recTot" class="aide" style="margin-top:6px"></div>
       <label style="font-weight:600;display:block;margin-top:10px">Type de livraison <select id="sdCat" style="font:inherit;padding:8px">${sdCats.map(c=>`<option value="${c[0]}" ${c[0]===(r.categorie||(r.so?'autre':'stock'))?'selected':''}>${c[1]}</option>`).join('')}</select></label>
       <label style="font-weight:600;display:block;margin-top:10px">Commentaire (obligatoire)<textarea id="sdTxt" rows="4" style="width:100%" placeholder="Ex. : vitres pour Collins, rangées au rack B…"></textarea></label>
       <label style="font-weight:600;display:block;margin-top:10px">📍 Emplacement <input class="rempl" id="sdEmpl" placeholder="A2" maxlength="20" autocapitalize="characters"></label></div>`;
@@ -762,8 +768,11 @@ function ouvrirRec(i){
   const envoyerSd=()=>{
     const msg=document.getElementById('recMsg');
     const txt=document.getElementById('sdTxt').value.trim(), cat=document.getElementById('sdCat').value, em=document.getElementById('sdEmpl').value.trim().toUpperCase();
+    const ok=[],manque=[];
+    cks().forEach(c=>{const co=r.colis[+c.dataset.c];(c.checked?ok:manque).push((co.qte==null?'?':co.qte)+' '+co.desc)});
+    if(cks().length&&!ok.length){msg.innerHTML='<div class="alerte">Cochez au moins un colis reçu, ou touchez « Ignorer ce bon ».</div>';return}
     if(!txt){msg.innerHTML='<div class="alerte">Écrivez un commentaire (ce que c’est, pour qui, où c’est rangé).</div>';return}
-    const extra={bris:false,commentaire:txt+(em?'\nEmplacement : '+em:''),manquants:'',categorie:cat};
+    const extra={bris:false,commentaire:txt+(em?'\nEmplacement : '+em:'')+(ok.length?'\nReçu :\n'+ok.join('\n'):''),manquants:manque.join('\n'),categorie:cat};
     dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
     msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
     appelerGs('confirmerReception',[NIP,r.id,'',[],false,extra],x=>{
