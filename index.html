@@ -207,7 +207,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 29 oct. 19 h (emplacement dans la shop).</span></footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 31 oct. 10 h (emplacement par article).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -369,7 +369,7 @@ function ouvrirFiche(x){
       <dt>Produits</dt><dd>${esc(x.prod||'—')}</dd>
       <dt>Durée</dt><dd>${dur} · ${dates}</dd>
       <dt>Matériel</dt><dd>${mat}</dd>
-      ${x.empl?`<dt>Emplacement</dt><dd><b>📍 ${esc(x.empl)}</b></dd>`:''}
+      ${(x.emplLignes&&x.emplLignes.length)?`<dt>Emplacement</dt><dd>${x.emplLignes.map(t=>`<b>📍 ${esc(t)}</b>`).join('<br>')}</dd>`:(x.empl?`<dt>Emplacement</dt><dd><b>📍 ${esc(x.empl)}</b></dd>`:'')}
     </dl>
     <div class="actions">
       ${adr?`<a class="btn plein" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adr)}">Itinéraire</a>`:''}
@@ -726,7 +726,7 @@ function ouvrirRec(i){
         const ci=+c.dataset.c, co=r.colis[ci], sel=dlg.querySelector('.rlig[data-c="'+ci+'"]');
         const lid=sel?sel.value:ligneDe(co);
         const g=parLigne[lid]=parLigne[lid]||{ok:[],manque:[],empl:[]};
-        const ev=(dlg.querySelector('.rempl[data-c="'+ci+'"]')||{value:''}).value.trim().toUpperCase();
+        const ev=((dlg.querySelector('.rempl[data-c="'+ci+'"]')||{value:''}).value.trim()||(document.getElementById('recEmplTous')||{value:''}).value.trim()).toUpperCase();
         if(c.checked&&ev&&g.empl.indexOf(ev)<0)g.empl.push(ev);
         const t=(co.qte==null?'?':co.qte)+' '+co.desc;
         (c.checked?g.ok:g.manque).push(t);
