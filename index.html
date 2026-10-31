@@ -207,7 +207,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 31 oct. 11 h (réception sans dossier).</span></footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 31 oct. 14 h (PO des bons sans SO).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -663,7 +663,7 @@ function rendreRec(){
     const c=document.createElement('button');c.type='button';c.className='cbon rec';
     const nbc=(r.colis||[]).reduce((n,x)=>n+(+x.qte||0),0);
     const cli=(r.dossiers&&r.dossiers[0]&&r.dossiers[0].client)||r.clientBon||'';
-    c.innerHTML=`<span class="typ">${esc(r.fournisseur||'Fournisseur ?')}</span><b>${esc(cli||'Client ?')}</b><small>${r.so?'SO-'+esc(r.so):'Pas de n° de SO'}${r.commandeFournisseur?' · '+esc(r.commandeFournisseur):''}</small><span class="rst">${nbc} colis</span>${r.remarques?`<small>⚠ ${esc(r.remarques)}</small>`:''}`;
+    c.innerHTML=`<span class="typ">${esc(r.fournisseur||'Fournisseur ?')}</span><b>${esc(cli||'Client ?')}</b><small>${r.so?'SO-'+esc(r.so):(r.poLabel?'PO '+esc(r.poLabel):'Pas de n° de SO')}${r.commandeFournisseur?' · '+esc(r.commandeFournisseur):''}</small><span class="rst">${nbc} colis</span>${r.remarques?`<small>⚠ ${esc(r.remarques)}</small>`:''}`;
     c.onclick=()=>ouvrirRec(i);el.appendChild(c);
   });
 }
@@ -701,7 +701,7 @@ function ouvrirRec(i){
       <div id="recBrisZone" hidden style="margin-top:8px"><textarea id="recBrisTxt" rows="3" placeholder="Décrivez le problème (obligatoire) : lequel, sur quel article…" style="width:100%"></textarea></div>
       <div style="margin-top:10px"><button class="btn" type="button" id="recComBtn">💬 Ajouter un commentaire</button> <small id="recComVu" style="color:var(--muted)"></small></div></div>`;
   dlg.innerHTML=`<div class="feuille">
-    <div class="ent"><div class="m">RÉCEPTION</div><div style="display:flex;gap:12px;align-items:center"><div class="t">${esc(r.fournisseur||'Fournisseur')}<b id="recTitre">${r.so?'SO-'+esc(r.so):'Sans SO'}</b></div><button class="fermer noprint" type="button" aria-label="Fermer" id="recFermer">×</button></div></div>
+    <div class="ent"><div class="m">RÉCEPTION</div><div style="display:flex;gap:12px;align-items:center"><div class="t">${esc(r.fournisseur||'Fournisseur')}<b id="recTitre">${r.so?'SO-'+esc(r.so):(r.poLabel?'PO '+esc(r.poLabel):'Sans SO')}</b></div><button class="fermer noprint" type="button" aria-label="Fermer" id="recFermer">×</button></div></div>
     ${r.remarques?`<div class="zone"><div class="alerte">⚠ ${esc(r.remarques)}</div></div>`:''}
     ${corps}
     <div class="zone"><div style="display:flex;gap:10px;flex-wrap:wrap">
