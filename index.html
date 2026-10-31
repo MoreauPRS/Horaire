@@ -506,10 +506,20 @@ function appelerGs(fn,args,ok,ko){
     setTimeout(()=>{if(fn==='getBons')ok({ok:true,bons:JSON.parse(JSON.stringify(window.MOCK_BONS))});else if(fn==='getReceptions')ok({ok:true,receptions:JSON.parse(JSON.stringify(window.MOCK_RECS||[]))});else if(fn==='confirmerReception')ok({ok:true,zoho:{ok:true,simulation:true}});else if(fn==='changerEmplacement')ok({ok:true,emplacement:args[3]});else ok({ok:true,num:'BL-'+BONS[0].so+'-1',reste:0,pdf:'#',zoho:{ok:true,simulation:true,notes:['aperçu']}})},150);
   }else ko('Service indisponible');
 }
+// Bons signés et réceptions envoyées : retirés tout de suite de la liste, même si le serveur les renvoie encore quelques minutes.
+const SIGNES={}; // fichier -> {t, complet, remis:[[g,i]...]}
+const RECS_ENVOYEES={}; // id -> t
+const RECENT=15*60*1000;
+function appliquerSignes(){
+  const now=Date.now();
+  Object.keys(SIGNES).forEach(f=>{if(now-SIGNES[f].t>RECENT)delete SIGNES[f]});
+  BONS=BONS.filter(b=>!(SIGNES[b.fichier]&&SIGNES[b.fichier].complet));
+  BONS.forEach(b=>{const s=SIGNES[b.fichier];if(!s)return;s.remis.forEach(([g,i])=>{const it=b.colis&&b.colis[g]&&b.colis[g].items[i];if(it&&!it.remis)it.remis=new Date().toISOString().slice(0,10)})});
+}
 function chargerBons(){
   appelerGs('getBons',[NIP],r=>{
     if(!r||!r.ok){document.getElementById('listeBons').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
-    BONS=r.bons||[];rendreBons();
+    BONS=r.bons||[];appliquerSignes();rendreBons();
   },err=>{document.getElementById('listeBons').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
 }
 function rendreBons(){
@@ -645,7 +655,8 @@ function ouvrirBon(i){
         <span>${r.reste?r.reste+' colis restent à remettre : le bon reste dans la liste pour la suite.':'Tout est remis.'}</span>
         ${z.ok?(z.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':'<small>Zoho est à jour (lignes livrées, bon classé dans le dossier du client).</small>'):`<div class="alerte"><b>Attention : Zoho n’a PAS été mis à jour.</b> Le bon signé est sauvegardé. Avisez Sébastien. (${esc(z.err||'')})</div>`}
         <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn plein" type="button" onclick="window.print()">Imprimer la copie client</button><button class="btn" type="button" onclick="document.getElementById('bon').close()">Terminer</button></div></div>`;
-      chargerBons();
+      SIGNES[b.fichier]={t:Date.now(),complet:!r.reste,remis:coches()};
+      appliquerSignes();rendreBons();
     },err=>{bt.disabled=false;bt.textContent='Signer et enregistrer';document.getElementById('bonMsg').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}. Réessayez.</div>`});
   };
 }
@@ -655,7 +666,8 @@ let RECS=[];
 function chargerRec(){
   appelerGs('getReceptions',[NIP],r=>{
     if(!r||!r.ok){document.getElementById('listeRec').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
-    RECS=r.receptions||[];rendreRec();
+    Object.keys(RECS_ENVOYEES).forEach(k=>{if(Date.now()-RECS_ENVOYEES[k]>RECENT)delete RECS_ENVOYEES[k]});
+    RECS=(r.receptions||[]).filter(x=>!RECS_ENVOYEES[x.id]);rendreRec();
   },err=>{document.getElementById('listeRec').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
 }
 function rendreRec(){
@@ -788,15 +800,15 @@ function avisRec(html,cls,duree){
 }
 function enregistrerFond(r,args,titre){
   const dlg=document.getElementById('rec');
-  RECS=RECS.filter(x=>x!==r);rendreRec();dlg.close();
+  RECS_ENVOYEES[r.id]=Date.now();RECS=RECS.filter(x=>x!==r);rendreRec();dlg.close();
   envoisEnCours++;
   avisRec(`✓ <b>${esc(titre)}</b> <small>— ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''}</small>`,'okrec',3500);
   const fin=()=>{envoisEnCours--;if(!envoisEnCours)chargerRec()};
   appelerGs('confirmerReception',args,x=>{
-    if(!x||!x.ok){avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : ${esc(x&&x.err||'Erreur')}. Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');fin();return}
+    if(!x||!x.ok){avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : ${esc(x&&x.err||'Erreur')}. Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');delete RECS_ENVOYEES[r.id];fin();return}
     if(x.zoho&&x.zoho.simulation)avisRec(`✓ <b>${esc(titre)}</b> <small>— mode essai : rien n’a été changé dans Zoho.</small>`,'okrec',5000);
     fin();
-  },err=>{avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : connexion impossible (${esc(err)}). Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');fin()});
+  },err=>{avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : connexion impossible (${esc(err)}). Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');delete RECS_ENVOYEES[r.id];fin()});
 }
 function confirmerIgnorer(){const m=document.getElementById('recMsg');if(m.dataset.ok==='1')return true;m.dataset.ok='1';m.innerHTML='<div class="alerte">Touchez « Ignorer ce bon » encore une fois pour l’écarter.</div>';return false}
 const nomF=n=>{let s=String(n||'').replace(/^[\d\-\s]+-\s*/,'').replace(/\s+(modular enclosures|enclosures)?\s*inc\.?$/i,'').trim();if(s&&s===s.toUpperCase())s=s.toLowerCase().replace(/(^|[\s\-'])\S/g,c=>c.toUpperCase());return s};
