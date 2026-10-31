@@ -155,6 +155,9 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
 .jourbons{grid-column:1/-1;margin:18px 4px 8px;font-size:15px;text-transform:capitalize}.jourbons.retard{color:#b00}.btn[disabled]{opacity:.45;cursor:not-allowed}
 .ok{background:var(--Cbg);border:1px solid var(--C);border-radius:10px;padding:16px;display:grid;gap:8px}
 .ok b{font-family:var(--display);font-size:24px}
+.avisrec{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;max-width:min(560px,calc(100vw - 32px));padding:14px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:16px;cursor:pointer}
+.avisrec.okrec{background:var(--Cbg);border:1px solid var(--C)}
+.avisrec.errrec{background:var(--Bbg);border:2px solid var(--B)}
 .alerte{background:var(--Bbg);border:1px solid var(--B);border-radius:10px;padding:12px 14px;font-size:14px}
 @media print{body>*:not(#bon){display:none!important}dialog#bon{position:static;width:100%;height:auto;max-height:none;border:none}.sig,.noprint{display:none!important}}
 @media (prefers-reduced-motion:no-preference){.job{transition:transform .12s}.job:hover{transform:translateY(-1px)}}
@@ -756,13 +759,7 @@ function ouvrirRec(i){
       const com=document.getElementById('recComTxt').value.trim();
       extra={bris:bris,commentaire:[bris?'BRIS / QUALITÉ : '+txtBris:'',com].filter(String).join('\n'),manquants:manquants.join('\n')};
     }
-    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
-    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
-    appelerGs('confirmerReception',[NIP,r.id,dos?dos.dossierId:'',lignes,!!ignorer,extra],x=>{
-      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
-      msg.innerHTML=`<div class="ok"><b>${ignorer?'Bon écarté':'Réception enregistrée'}</b>${!ignorer&&x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
-      chargerRec();
-    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+    enregistrerFond(r,[NIP,r.id,dos?dos.dossierId:'',lignes,!!ignorer,extra],ignorer?'Bon écarté':'Réception enregistrée');
   };
   if(document.getElementById('recEmplTous'))document.getElementById('recEmplTous').oninput=e=>dlg.querySelectorAll('.rempl[data-c]').forEach(x=>x.value=e.target.value);
   const envoyerSd=()=>{
@@ -773,17 +770,33 @@ function ouvrirRec(i){
     if(cks().length&&!ok.length){msg.innerHTML='<div class="alerte">Cochez au moins un colis reçu, ou touchez « Ignorer ce bon ».</div>';return}
     if(!txt){msg.innerHTML='<div class="alerte">Écrivez un commentaire (ce que c’est, pour qui, où c’est rangé).</div>';return}
     const extra={bris:false,commentaire:txt+(em?'\nEmplacement : '+em:'')+(ok.length?'\nReçu :\n'+ok.join('\n'):''),manquants:manque.join('\n'),categorie:cat};
-    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
-    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
-    appelerGs('confirmerReception',[NIP,r.id,'',[],false,extra],x=>{
-      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
-      msg.innerHTML=`<div class="ok"><b>Réception enregistrée</b>${x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été déposé.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
-      chargerRec();
-    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+    enregistrerFond(r,[NIP,r.id,'',[],false,extra],'Réception enregistrée');
   };
   if(document.getElementById('recSd'))document.getElementById('recSd').onclick=envoyerSd;
   if(document.getElementById('recOk'))document.getElementById('recOk').onclick=()=>envoyer(false);
   document.getElementById('recIgn').onclick=()=>{if(confirmerIgnorer())envoyer(true)};
+}
+// Enregistrement instantané : on ferme le bon tout de suite et l'envoi se termine en arrière-plan.
+// En cas d'erreur, un avis reste affiché et le bon revient dans la liste.
+let envoisEnCours=0;
+function avisRec(html,cls,duree){
+  let t=document.getElementById('avisRec');
+  if(!t){t=document.createElement('div');t.id='avisRec';t.setAttribute('role','status');document.body.appendChild(t)}
+  t.className='avisrec '+(cls||'');t.innerHTML=html;t.hidden=false;
+  clearTimeout(t._h);if(duree)t._h=setTimeout(()=>{t.hidden=true},duree);
+  t.onclick=()=>{t.hidden=true};
+}
+function enregistrerFond(r,args,titre){
+  const dlg=document.getElementById('rec');
+  RECS=RECS.filter(x=>x!==r);rendreRec();dlg.close();
+  envoisEnCours++;
+  avisRec(`✓ <b>${esc(titre)}</b> <small>— ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''}</small>`,'okrec',3500);
+  const fin=()=>{envoisEnCours--;if(!envoisEnCours)chargerRec()};
+  appelerGs('confirmerReception',args,x=>{
+    if(!x||!x.ok){avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : ${esc(x&&x.err||'Erreur')}. Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');fin();return}
+    if(x.zoho&&x.zoho.simulation)avisRec(`✓ <b>${esc(titre)}</b> <small>— mode essai : rien n’a été changé dans Zoho.</small>`,'okrec',5000);
+    fin();
+  },err=>{avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : connexion impossible (${esc(err)}). Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');fin()});
 }
 function confirmerIgnorer(){const m=document.getElementById('recMsg');if(m.dataset.ok==='1')return true;m.dataset.ok='1';m.innerHTML='<div class="alerte">Touchez « Ignorer ce bon » encore une fois pour l’écarter.</div>';return false}
 const nomF=n=>{let s=String(n||'').replace(/^[\d\-\s]+-\s*/,'').replace(/\s+(modular enclosures|enclosures)?\s*inc\.?$/i,'').trim();if(s&&s===s.toUpperCase())s=s.toLowerCase().replace(/(^|[\s\-'])\S/g,c=>c.toUpperCase());return s};
