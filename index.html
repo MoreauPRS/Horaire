@@ -190,7 +190,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
     <div class="listeBons" id="listeBons"><div class="charge">Chargement…</div></div>
   </section>
   <section id="vueRec" hidden style="display:grid;gap:12px">
-    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez. <span style="opacity:.6">[page v6 6 nov. : titre = nom du dossier, photos, bris sans SO]</span></div>
+    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez. <span style="opacity:.6">[page v7 6 nov. : envoi en arrière-plan, cases sans SO]</span></div>
     <div class="listeBons" id="listeRec"><div class="charge">Chargement…</div></div>
   </section>
   <div id="vueInst" style="display:grid;gap:20px">
@@ -207,7 +207,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 6 nov. (photos de bris).</span></footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 6 nov. (envoi en arrière-plan).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -650,6 +650,46 @@ function ouvrirBon(i){
 
 // ================= Réceptions fournisseurs (François) =================
 let RECS=[];
+// ---- Envoi en arrière-plan : la fenêtre se ferme tout de suite, l'envoi continue pendant qu'on change de page ----
+let ENVOIS=[], ENVOI_ACTIF=false;
+function enAttenteIds(){return ENVOIS.map(e=>e.recId)}
+function dessinerBande(){
+  let b=document.getElementById('bandeEnvoi');
+  if(!b){b=document.createElement('div');b.id='bandeEnvoi';b.setAttribute('role','status');b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:50;display:flex;flex-direction:column;gap:6px';document.body.appendChild(b)}
+  b.innerHTML='';
+  ENVOIS.forEach(e=>{
+    const d=document.createElement('div');
+    d.style.cssText='padding:10px 14px;border-radius:10px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;justify-content:space-between;'+(e.etat==='erreur'?'background:#8e2a1f;color:#fff':e.etat==='ok'?'background:#1f6b3a;color:#fff':'background:#243442;color:#fff');
+    if(e.etat==='erreur'){
+      d.innerHTML=`<span>⚠ ${esc(e.nom)} : non enregistré (${esc(e.err||'erreur')})</span><span style="display:flex;gap:8px"><button class="btn" type="button" data-a="re">Réessayer</button></span>`;
+      d.querySelector('[data-a="re"]').onclick=()=>{e.etat='attente';e.err='';dessinerBande();traiterEnvois()};
+    }else d.innerHTML=`<span>${e.etat==='ok'?'✓ '+esc(e.nom)+' : '+esc(e.libelle):'⏳ '+esc(e.nom)+' : envoi en cours…'}</span>`;
+    b.appendChild(d);
+  });
+  b.hidden=!ENVOIS.length;
+}
+function envoyerEnFond(r,args,libelle){
+  const dosC=(r.dossiers||[])[0]||null;
+  const nom=(dosC&&dosC.nom)||r.clientBon||(r.so?'SO-'+r.so:(r.poLabel?'PO '+r.poLabel:'Bon'));
+  ENVOIS.push({recId:r.id,nom:nom,args:args,libelle:libelle,etat:'attente',err:''});
+  try{document.getElementById('rec').close()}catch(e){}
+  rendreRec();dessinerBande();traiterEnvois();
+}
+function traiterEnvois(){
+  if(ENVOI_ACTIF)return;
+  const e=ENVOIS.find(x=>x.etat==='attente');
+  if(!e)return;
+  ENVOI_ACTIF=true;e.etat='envoi';dessinerBande();
+  const fin=()=>{ENVOI_ACTIF=false;traiterEnvois()};
+  appelerGs('confirmerReception',e.args,x=>{
+    if(x&&x.ok||(x&&/introuvable/i.test(x.err||''))){ // déjà confirmée : même résultat
+      e.etat='ok';dessinerBande();
+      setTimeout(()=>{ENVOIS=ENVOIS.filter(y=>y!==e);dessinerBande();if(!ENVOIS.length)chargerRec();else rendreRec()},2500);
+    }else{e.etat='erreur';e.err=(x&&x.err)||'erreur';dessinerBande();rendreRec()}
+    fin();
+  },err=>{e.etat='erreur';e.err='connexion : '+err;dessinerBande();rendreRec();fin()});
+}
+window.addEventListener('beforeunload',ev=>{if(ENVOIS.some(x=>x.etat!=='ok')){ev.preventDefault();ev.returnValue=''}});
 function chargerRec(){
   appelerGs('getReceptions',[NIP],r=>{
     if(!r||!r.ok){document.getElementById('listeRec').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
@@ -658,9 +698,11 @@ function chargerRec(){
 }
 function rendreRec(){
   const el=document.getElementById('listeRec');el.innerHTML='';
-  const nb=document.getElementById('nbRec');nb.hidden=!RECS.length;nb.textContent=RECS.length;
-  if(!RECS.length){el.innerHTML='<div class="charge">Aucune réception à confirmer.</div>';return}
+  const att=enAttenteIds(), visibles=RECS.filter(r=>att.indexOf(r.id)<0);
+  const nb=document.getElementById('nbRec');nb.hidden=!visibles.length;nb.textContent=visibles.length;
+  if(!visibles.length){el.innerHTML='<div class="charge">'+(RECS.length?'Tout est en cours d’envoi…':'Aucune réception à confirmer.')+'</div>';return}
   RECS.forEach((r,i)=>{
+    if(att.indexOf(r.id)>=0)return;
     const c=document.createElement('button');c.type='button';c.className='cbon rec';
     const nbc=(r.colis||[]).reduce((n,x)=>n+(+x.qte||0),0);
     const dosC=(r.dossiers||[]).filter(d=>(d.lignes||[]).some(l=>!(l.statut==='Totalement reçu'||l.recueLe)))[0]||(r.dossiers||[])[0]||null;
@@ -689,12 +731,14 @@ function ouvrirRec(i){
   const dejaHtml=deja.map(l=>`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`).join('');
   const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>`:'';
   const sdCats=[['sr','Service request (SR)'],['stock','Commande de stock'],['vitrerie','Vitrerie'],['inventaire','Inventaire / quincaillerie'],['emballage','Matériel d’emballage'],['moulure','Moulure en vrac'],['autre','Autre']];
-  const sdHtml=`<div class="zone"><h3>Réception sans dossier</h3><div class="aide">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Écrivez un commentaire pour l’enregistrer (le bon sera classé dans le dossier général), ou ignorez ce bon.</div>
-      <table class="tb"><tr><th>Qté</th><th>Description</th></tr>${(r.colis||[]).map(c=>`<tr><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td>${esc(c.desc)}</td></tr>`).join('')||'<tr><td colspan="2">Aucun colis lu.</td></tr>'}</table>
+  const sdHtml=`<div class="zone"><h3>Réception sans dossier</h3><div class="aide">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Cochez les colis reçus (le bon sera classé dans le dossier général), ou ignorez ce bon.</div>
+      <div class="aide" style="margin-top:6px">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>
+      <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>📍</th></tr>${(r.colis||[]).map((c,ci)=>`<tr><td style="width:44px"><input type="checkbox" class="rck" data-c="${ci}" aria-label="Reçu : ${esc(c.desc)}" style="width:28px;height:28px;accent-color:var(--ok)"></td><td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td><input class="rempl" data-c="${ci}" placeholder="A2" maxlength="20" aria-label="Emplacement dans la shop" autocapitalize="characters"></td></tr>`).join('')||'<tr><td colspan="4">Aucun colis lu.</td></tr>'}</table>
+      <div id="recTot" class="aide" style="margin-top:6px"></div>
       <label style="font-weight:600;display:block;margin-top:10px">Type de livraison <select id="sdCat" style="font:inherit;padding:8px">${sdCats.map(c=>`<option value="${c[0]}" ${c[0]===(r.categorie||(r.so?'autre':'stock'))?'selected':''}>${c[1]}</option>`).join('')}</select></label>
       <label style="display:flex;gap:10px;align-items:center;font-weight:600;margin-top:12px"><input type="checkbox" id="sdBris" style="width:28px;height:28px;accent-color:var(--warn,#c0392b)"> ⚠ Bris ou problème de qualité</label>
-      <label style="font-weight:600;display:block;margin-top:10px">Commentaire (obligatoire)<textarea id="sdTxt" rows="4" style="width:100%" placeholder="Ex. : vitres pour Collins, rangées au rack B…"></textarea></label>
-      <label style="font-weight:600;display:block;margin-top:10px">📍 Emplacement <input class="rempl" id="sdEmpl" placeholder="A2" maxlength="20" autocapitalize="characters"></label>${photoZone()}</div>`;
+      <label style="font-weight:600;display:block;margin-top:10px">Commentaire (facultatif)<textarea id="sdTxt" rows="3" style="width:100%" placeholder="Ex. : vitres pour Collins, rangées au rack B…"></textarea></label>
+      <label style="font-weight:600;display:block;margin-top:10px">📍 Emplacement pour tout le bon <input class="rempl" id="sdEmpl" placeholder="A2" maxlength="20" autocapitalize="characters"></label>${photoZone()}</div>`;
   const corps=!dos||!ouvertes.length
     ?sdHtml
     :`<div class="zone"><h3>Colis sur le bon</h3><div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>${entete}
@@ -755,28 +799,26 @@ function ouvrirRec(i){
       const com=document.getElementById('recComTxt').value.trim();
       extra={bris:bris,commentaire:[bris?'BRIS / QUALITÉ : '+txtBris:'',com].filter(String).join('\n'),manquants:manquants.join('\n'),photos:PHOTOS.slice()};
     }
-    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
-    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
-    appelerGs('confirmerReception',[NIP,r.id,dos?dos.dossierId:'',lignes,!!ignorer,extra],x=>{
-      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
-      msg.innerHTML=`<div class="ok"><b>${ignorer?'Bon écarté':'Réception enregistrée'}</b>${!ignorer&&x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
-      chargerRec();
-    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+    envoyerEnFond(r,[NIP,r.id,dos?dos.dossierId:'',lignes,!!ignorer,extra],ignorer?'Bon écarté':'Réception enregistrée');
   };
   if(document.getElementById('recEmplTous'))document.getElementById('recEmplTous').oninput=e=>dlg.querySelectorAll('.rempl[data-c]').forEach(x=>x.value=e.target.value);
   const envoyerSd=()=>{
     const msg=document.getElementById('recMsg');
-    const txt=document.getElementById('sdTxt').value.trim(), cat=document.getElementById('sdCat').value, em=document.getElementById('sdEmpl').value.trim().toUpperCase();
-    if(!txt){msg.innerHTML='<div class="alerte">Écrivez un commentaire (ce que c’est, pour qui, où c’est rangé).</div>';return}
+    const txt=document.getElementById('sdTxt').value.trim(), cat=document.getElementById('sdCat').value, emT=document.getElementById('sdEmpl').value.trim().toUpperCase();
+    const recus=[],manque=[],empls=[];
+    cks().forEach(c=>{
+      const co=r.colis[+c.dataset.c], t=(co.qte==null?'?':co.qte)+' '+co.desc;
+      if(c.checked){
+        const e=((dlg.querySelector('.rempl[data-c="'+c.dataset.c+'"]')||{value:''}).value.trim()||emT).toUpperCase();
+        recus.push(t+(e?' (📍 '+e+')':''));if(e&&empls.indexOf(e)<0)empls.push(e);
+      }else manque.push(t);
+    });
+    if(!recus.length&&(r.colis||[]).length){msg.innerHTML='<div class="alerte">Cochez au moins un colis reçu, ou touchez « Ignorer ce bon ».</div>';return}
     const bris=document.getElementById('sdBris').checked;
-    const extra={bris:bris,commentaire:(bris?'BRIS / QUALITÉ : ':'')+txt+(em?'\nEmplacement : '+em:''),manquants:'',categorie:cat,photos:PHOTOS.slice()};
-    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
-    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
-    appelerGs('confirmerReception',[NIP,r.id,'',[],false,extra],x=>{
-      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
-      msg.innerHTML=`<div class="ok"><b>Réception enregistrée</b>${x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été déposé.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
-      chargerRec();
-    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+    if(bris&&!txt){msg.innerHTML='<div class="alerte">Décrivez le bris ou le problème de qualité.</div>';return}
+    const parties=[bris?'BRIS / QUALITÉ : '+txt:txt, recus.length?'Colis reçus : '+recus.join(' ; '):'', manque.length?'Non reçus : '+manque.join(' ; '):'', (!empls.length&&emT)?'Emplacement : '+emT:''].filter(String);
+    const extra={bris:bris,commentaire:parties.join('\n'),manquants:manque.join('\n'),categorie:cat,photos:PHOTOS.slice()};
+    envoyerEnFond(r,[NIP,r.id,'',[],false,extra],'Réception enregistrée');
   };
   if(document.getElementById('recSd'))document.getElementById('recSd').onclick=envoyerSd;
   if(document.getElementById('recOk'))document.getElementById('recOk').onclick=()=>envoyer(false);
