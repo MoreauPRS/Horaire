@@ -190,7 +190,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
     <div class="listeBons" id="listeBons"><div class="charge">Chargement…</div></div>
   </section>
   <section id="vueRec" hidden style="display:grid;gap:12px">
-    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez. <span style="opacity:.6">[page v7 6 nov. : envoi en arrière-plan, cases sans SO]</span></div>
+    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez. <span style="opacity:.6">[page v8 6 nov. : messages d’erreur et options]</span></div>
     <div class="listeBons" id="listeRec"><div class="charge">Chargement…</div></div>
   </section>
   <div id="vueInst" style="display:grid;gap:20px">
@@ -207,7 +207,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 6 nov. (envoi en arrière-plan).</span></footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 6 nov. (messages d’erreur).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -685,9 +685,42 @@ function traiterEnvois(){
     if(x&&x.ok||(x&&/introuvable/i.test(x.err||''))){ // déjà confirmée : même résultat
       e.etat='ok';dessinerBande();
       setTimeout(()=>{ENVOIS=ENVOIS.filter(y=>y!==e);dessinerBande();if(!ENVOIS.length)chargerRec();else rendreRec()},2500);
-    }else{e.etat='erreur';e.err=(x&&x.err)||'erreur';dessinerBande();rendreRec()}
+    }else{e.etat='erreur';e.err=(x&&x.err)||'erreur';dessinerBande();rendreRec();expliquerErreur(e)}
     fin();
-  },err=>{e.etat='erreur';e.err='connexion : '+err;dessinerBande();rendreRec();fin()});
+  },err=>{e.etat='erreur';e.err='connexion : '+err;e.reseau=true;dessinerBande();rendreRec();expliquerErreur(e);fin()});
+}
+// Cause en mots simples + ce qui est arrivé au bon + les options
+function causeErreur(e){
+  const t=String(e.err||'');
+  if(e.reseau)return ['La connexion avec le serveur a échoué.','Vérifiez le wifi, puis touchez « Réessayer ». Rien n’a été modifié dans Zoho.'];
+  if(/NIP/i.test(t))return ['Le NIP est refusé.','Rouvrez l’application et entrez le NIP.'];
+  if(/refus/i.test(t))return ['Zoho a refusé la mise à jour du dossier.','La ligne de commande a probablement changé depuis la lecture du bon (déjà reçue, ou déjà livrée au client). Le bon n’est pas perdu : vous pouvez le classer sans dossier.'];
+  if(/dossierId|ligneId/i.test(t))return ['Le bon n’est lié à aucune ligne du dossier.','Classez-le sans dossier.'];
+  if(/commentaire/i.test(t))return ['Un commentaire est nécessaire.','Réessayez en ajoutant un commentaire.'];
+  if(/Étape|Zoho/i.test(t))return ['Zoho n’a pas répondu comme prévu.',t.substring(0,200)];
+  return ['L’enregistrement a échoué.',t.substring(0,200)];
+}
+function expliquerErreur(e){
+  let d=document.getElementById('dlgErr');
+  if(!d){d=document.createElement('dialog');d.id='dlgErr';d.style.cssText='max-width:560px;width:92vw;border-radius:14px;padding:0;border:1px solid var(--line,#444);background:var(--panel,#1a2128);color:var(--fg,#e7ecf0)';document.body.appendChild(d)}
+  const c=causeErreur(e), avecDossier=!!(e.args&&e.args[2]), ignore=!!(e.args&&e.args[4]);
+  d.innerHTML=`<div style="padding:18px 20px"><h3 style="margin:0 0 8px">⚠ ${esc(e.nom)} : non enregistré</h3>
+    <p style="margin:0 0 8px;font-weight:600">${esc(c[0])}</p><p style="margin:0 0 14px;color:var(--muted)">${esc(c[1])}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn plein" type="button" id="errRe">Réessayer</button>
+      ${avecDossier&&!ignore?'<button class="btn" type="button" id="errSd">Classer sans dossier</button>':''}
+      <button class="btn" type="button" id="errFermer">Plus tard</button></div></div>`;
+  d.querySelector('#errRe').onclick=()=>{d.close();e.etat='attente';e.err='';e.reseau=false;dessinerBande();traiterEnvois()};
+  d.querySelector('#errFermer').onclick=()=>d.close();
+  const sd=d.querySelector('#errSd');
+  if(sd)sd.onclick=()=>{ // même bon, classé sans dossier : les colis reçus sont notés dans le commentaire
+    d.close();
+    const lignes=e.args[3]||[], ex=Object.assign({},e.args[5]||{});
+    const recus=lignes.map(l=>l.colis).filter(String).join(' ; ').replace(/\n/g,' ; ');
+    ex.commentaire=[ex.commentaire||'',recus?'Colis reçus : '+recus:'','Classé sans dossier : mise à jour du dossier impossible ('+String(e.err).substring(0,120)+').'].filter(String).join('\n');
+    e.args=[e.args[0],e.args[1],'',[],false,ex];e.etat='attente';e.err='';dessinerBande();traiterEnvois();
+  };
+  if(!d.open)d.showModal();
 }
 window.addEventListener('beforeunload',ev=>{if(ENVOIS.some(x=>x.etat!=='ok')){ev.preventDefault();ev.returnValue=''}});
 function chargerRec(){
@@ -730,8 +763,9 @@ function ouvrirRec(i){
   }).join('');
   const dejaHtml=deja.map(l=>`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`).join('');
   const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>`:'';
+  const dos0=(r.dossiers||[])[0]||null;
   const sdCats=[['sr','Service request (SR)'],['stock','Commande de stock'],['vitrerie','Vitrerie'],['inventaire','Inventaire / quincaillerie'],['emballage','Matériel d’emballage'],['moulure','Moulure en vrac'],['autre','Autre']];
-  const sdHtml=`<div class="zone"><h3>Réception sans dossier</h3><div class="aide">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Cochez les colis reçus (le bon sera classé dans le dossier général), ou ignorez ce bon.</div>
+  const sdHtml=`<div class="zone"><h3>Réception sans dossier</h3><div class="aide">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Le dossier '+esc((dos0&&dos0.nom)||'')+' est déjà à jour : toutes ses lignes sont reçues ou livrées au client, donc le dossier ne sera pas modifié.'} Cochez les colis reçus (le bon sera classé dans le dossier général), ou ignorez ce bon.</div>
       <div class="aide" style="margin-top:6px">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>
       <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>📍</th></tr>${(r.colis||[]).map((c,ci)=>`<tr><td style="width:44px"><input type="checkbox" class="rck" data-c="${ci}" aria-label="Reçu : ${esc(c.desc)}" style="width:28px;height:28px;accent-color:var(--ok)"></td><td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td><input class="rempl" data-c="${ci}" placeholder="A2" maxlength="20" aria-label="Emplacement dans la shop" autocapitalize="characters"></td></tr>`).join('')||'<tr><td colspan="4">Aucun colis lu.</td></tr>'}</table>
       <div id="recTot" class="aide" style="margin-top:6px"></div>
@@ -817,6 +851,7 @@ function ouvrirRec(i){
     const bris=document.getElementById('sdBris').checked;
     if(bris&&!txt){msg.innerHTML='<div class="alerte">Décrivez le bris ou le problème de qualité.</div>';return}
     const parties=[bris?'BRIS / QUALITÉ : '+txt:txt, recus.length?'Colis reçus : '+recus.join(' ; '):'', manque.length?'Non reçus : '+manque.join(' ; '):'', (!empls.length&&emT)?'Emplacement : '+emT:''].filter(String);
+    if(!parties.length)parties.push('Bon classé sans dossier.');
     const extra={bris:bris,commentaire:parties.join('\n'),manquants:manque.join('\n'),categorie:cat,photos:PHOTOS.slice()};
     envoyerEnFond(r,[NIP,r.id,'',[],false,extra],'Réception enregistrée');
   };
