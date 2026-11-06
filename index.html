@@ -155,9 +155,6 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
 .jourbons{grid-column:1/-1;margin:18px 4px 8px;font-size:15px;text-transform:capitalize}.jourbons.retard{color:#b00}.btn[disabled]{opacity:.45;cursor:not-allowed}
 .ok{background:var(--Cbg);border:1px solid var(--C);border-radius:10px;padding:16px;display:grid;gap:8px}
 .ok b{font-family:var(--display);font-size:24px}
-.avisrec{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;max-width:min(560px,calc(100vw - 32px));padding:14px 18px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:16px;cursor:pointer}
-.avisrec.okrec{background:var(--Cbg);border:1px solid var(--C)}
-.avisrec.errrec{background:var(--Bbg);border:2px solid var(--B)}
 .alerte{background:var(--Bbg);border:1px solid var(--B);border-radius:10px;padding:12px 14px;font-size:14px}
 @media print{body>*:not(#bon){display:none!important}dialog#bon{position:static;width:100%;height:auto;max-height:none;border:none}.sig,.noprint{display:none!important}}
 @media (prefers-reduced-motion:no-preference){.job{transition:transform .12s}.job:hover{transform:translateY(-1px)}}
@@ -193,7 +190,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
     <div class="listeBons" id="listeBons"><div class="charge">Chargement…</div></div>
   </section>
   <section id="vueRec" hidden style="display:grid;gap:12px">
-    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez.</div>
+    <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez. <span style="opacity:.6">[page v6 6 nov. : titre = nom du dossier, photos, bris sans SO]</span></div>
     <div class="listeBons" id="listeRec"><div class="charge">Chargement…</div></div>
   </section>
   <div id="vueInst" style="display:grid;gap:20px">
@@ -210,7 +207,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 31 oct. 14 h (PO des bons sans SO).</span></footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 6 nov. (photos de bris).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -450,6 +447,7 @@ function charger(nip,premiere){
       return;
     }
     NIP=nip;try{localStorage.setItem('horaire-nip',nip)}catch(e){}
+    try{localStorage.setItem('horaire-data',JSON.stringify(r.data))}catch(e){}
     DATA=r.data;DATA.jobs=placer(DATA.jobs||[]);
     document.getElementById('ecranNip').hidden=true;document.getElementById('app').hidden=false;
     const h=new Date();
@@ -506,20 +504,10 @@ function appelerGs(fn,args,ok,ko){
     setTimeout(()=>{if(fn==='getBons')ok({ok:true,bons:JSON.parse(JSON.stringify(window.MOCK_BONS))});else if(fn==='getReceptions')ok({ok:true,receptions:JSON.parse(JSON.stringify(window.MOCK_RECS||[]))});else if(fn==='confirmerReception')ok({ok:true,zoho:{ok:true,simulation:true}});else if(fn==='changerEmplacement')ok({ok:true,emplacement:args[3]});else ok({ok:true,num:'BL-'+BONS[0].so+'-1',reste:0,pdf:'#',zoho:{ok:true,simulation:true,notes:['aperçu']}})},150);
   }else ko('Service indisponible');
 }
-// Bons signés et réceptions envoyées : retirés tout de suite de la liste, même si le serveur les renvoie encore quelques minutes.
-const SIGNES={}; // fichier -> {t, complet, remis:[[g,i]...]}
-const RECS_ENVOYEES={}; // id -> t
-const RECENT=15*60*1000;
-function appliquerSignes(){
-  const now=Date.now();
-  Object.keys(SIGNES).forEach(f=>{if(now-SIGNES[f].t>RECENT)delete SIGNES[f]});
-  BONS=BONS.filter(b=>!(SIGNES[b.fichier]&&SIGNES[b.fichier].complet));
-  BONS.forEach(b=>{const s=SIGNES[b.fichier];if(!s)return;s.remis.forEach(([g,i])=>{const it=b.colis&&b.colis[g]&&b.colis[g].items[i];if(it&&!it.remis)it.remis=new Date().toISOString().slice(0,10)})});
-}
 function chargerBons(){
   appelerGs('getBons',[NIP],r=>{
     if(!r||!r.ok){document.getElementById('listeBons').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
-    BONS=r.bons||[];appliquerSignes();rendreBons();
+    BONS=r.bons||[];rendreBons();
   },err=>{document.getElementById('listeBons').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
 }
 function rendreBons(){
@@ -655,8 +643,7 @@ function ouvrirBon(i){
         <span>${r.reste?r.reste+' colis restent à remettre : le bon reste dans la liste pour la suite.':'Tout est remis.'}</span>
         ${z.ok?(z.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':'<small>Zoho est à jour (lignes livrées, bon classé dans le dossier du client).</small>'):`<div class="alerte"><b>Attention : Zoho n’a PAS été mis à jour.</b> Le bon signé est sauvegardé. Avisez Sébastien. (${esc(z.err||'')})</div>`}
         <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn plein" type="button" onclick="window.print()">Imprimer la copie client</button><button class="btn" type="button" onclick="document.getElementById('bon').close()">Terminer</button></div></div>`;
-      SIGNES[b.fichier]={t:Date.now(),complet:!r.reste,remis:coches()};
-      appliquerSignes();rendreBons();
+      chargerBons();
     },err=>{bt.disabled=false;bt.textContent='Signer et enregistrer';document.getElementById('bonMsg').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}. Réessayez.</div>`});
   };
 }
@@ -666,8 +653,7 @@ let RECS=[];
 function chargerRec(){
   appelerGs('getReceptions',[NIP],r=>{
     if(!r||!r.ok){document.getElementById('listeRec').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
-    Object.keys(RECS_ENVOYEES).forEach(k=>{if(Date.now()-RECS_ENVOYEES[k]>RECENT)delete RECS_ENVOYEES[k]});
-    RECS=(r.receptions||[]).filter(x=>!RECS_ENVOYEES[x.id]);rendreRec();
+    RECS=r.receptions||[];rendreRec();
   },err=>{document.getElementById('listeRec').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
 }
 function rendreRec(){
@@ -677,21 +663,19 @@ function rendreRec(){
   RECS.forEach((r,i)=>{
     const c=document.createElement('button');c.type='button';c.className='cbon rec';
     const nbc=(r.colis||[]).reduce((n,x)=>n+(+x.qte||0),0);
-    const cli=(r.dossiers&&r.dossiers[0]&&r.dossiers[0].client)||r.clientBon||'';
+    const dosC=(r.dossiers||[]).filter(d=>(d.lignes||[]).some(l=>!(l.statut==='Totalement reçu'||l.recueLe)))[0]||(r.dossiers||[])[0]||null;
+    const cli=(dosC&&dosC.nom)||(dosC&&dosC.client)||r.clientBon||''; // titre = nom du dossier (ex. Hardy-02695), sinon le client
     c.innerHTML=`<span class="typ">${esc(r.fournisseur||'Fournisseur ?')}</span><b>${esc(cli||'Client ?')}</b><small>${r.so?'SO-'+esc(r.so):(r.poLabel?'PO '+esc(r.poLabel):'Pas de n° de SO')}${r.commandeFournisseur?' · '+esc(r.commandeFournisseur):''}</small><span class="rst">${nbc} colis</span>${r.remarques?`<small>⚠ ${esc(r.remarques)}</small>`:''}`;
     c.onclick=()=>ouvrirRec(i);el.appendChild(c);
   });
 }
 function ouvrirRec(i){
+  PHOTOS=[];
   const r=RECS[i], dlg=document.getElementById('rec');
   // lignes ouvertes du dossier (celles qui peuvent recevoir des colis)
-  // dossier avec des lignes ouvertes; sinon le premier dossier trouvé (lignes déjà reçues : on peut quand même cocher les colis)
-  const recue=l=>l.statut==='Totalement reçu'||!!l.recueLe;
-  const dos=(r.dossiers||[]).filter(d=>(d.lignes||[]).some(l=>!recue(l)))[0]||(r.dossiers||[]).filter(d=>(d.lignes||[]).length)[0]||null;
-  const lesOuvertes=dos?dos.lignes.filter(l=>!recue(l)):[];
-  const toutRecu=!!dos&&!lesOuvertes.length;
-  const ouvertes=toutRecu?dos.lignes:lesOuvertes;
-  const deja=dos&&!toutRecu?dos.lignes.filter(recue):[];
+  const dos=(r.dossiers||[]).filter(d=>d.lignes.some(l=>!(l.statut==='Totalement reçu'||l.recueLe)))[0]||null;
+  const ouvertes=dos?dos.lignes.filter(l=>!(l.statut==='Totalement reçu'||l.recueLe)):[];
+  const deja=dos?dos.lignes.filter(l=>l.statut==='Totalement reçu'||l.recueLe):[];
   const ligneDe=c=>{ // ligne proposée pour ce colis (anciens bons sans ligneId : première ligne proposée)
     if(c.ligneId&&ouvertes.some(l=>String(l.id)===String(c.ligneId)))return String(c.ligneId);
     const p=ouvertes.filter(l=>l.propose)[0]||ouvertes[0];return p?String(p.id):'';
@@ -703,15 +687,14 @@ function ouvrirRec(i){
       <td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td><input class="rempl" data-c="${ci}" placeholder="A2" maxlength="20" aria-label="Emplacement dans la shop" autocapitalize="characters"></td><td>${dos?sel:''}</td></tr>`;
   }).join('');
   const dejaHtml=deja.map(l=>`<div class="lrec fait"><span>✓</span><div><b>${esc(l.item)}</b> <small>· ${esc(nomF(l.fournisseur))} · déjà reçu${l.recueLe?' le '+fd(String(l.recueLe).slice(0,10)):''}</small></div></div>`).join('');
-  const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>${toutRecu?'<div class="aide" style="color:var(--muted)">Ces lignes sont déjà marquées reçues : cochez quand même les colis pour qu’ils apparaissent sur le bon du client.</div>':''}`:'';
+  const entete=dos?`<div class="aide">${esc(dos.nom)} · ${esc(dos.client||'')} · ${esc(dos.type||'')}</div>`:'';
   const sdCats=[['sr','Service request (SR)'],['stock','Commande de stock'],['vitrerie','Vitrerie'],['inventaire','Inventaire / quincaillerie'],['emballage','Matériel d’emballage'],['moulure','Moulure en vrac'],['autre','Autre']];
   const sdHtml=`<div class="zone"><h3>Réception sans dossier</h3><div class="aide">${!(r.dossiers||[]).length?(r.so?'Aucun dossier de commandes trouvé pour SO-'+esc(r.so)+'.':'Ce bon n’a pas de numéro de SO (commande de stock ?).'):'Toutes les lignes de ce dossier sont déjà reçues.'} Écrivez un commentaire pour l’enregistrer (le bon sera classé dans le dossier général), ou ignorez ce bon.</div>
-      <div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>
-      <table class="tb"><tr><th></th><th>Description</th><th>Qté</th></tr>${(r.colis||[]).map((c,ci)=>`<tr><td style="width:44px"><input type="checkbox" class="rck" data-c="${ci}" aria-label="Reçu : ${esc(c.desc)}" style="width:28px;height:28px;accent-color:var(--ok)"></td><td>${esc(c.desc)}</td><td class="num">${c.qte==null?'?':esc(c.qte)}</td></tr>`).join('')||'<tr><td colspan="3">Aucun colis lu.</td></tr>'}</table>
-      <div id="recTot" class="aide" style="margin-top:6px"></div>
+      <table class="tb"><tr><th>Qté</th><th>Description</th></tr>${(r.colis||[]).map(c=>`<tr><td class="num">${c.qte==null?'?':esc(c.qte)}</td><td>${esc(c.desc)}</td></tr>`).join('')||'<tr><td colspan="2">Aucun colis lu.</td></tr>'}</table>
       <label style="font-weight:600;display:block;margin-top:10px">Type de livraison <select id="sdCat" style="font:inherit;padding:8px">${sdCats.map(c=>`<option value="${c[0]}" ${c[0]===(r.categorie||(r.so?'autre':'stock'))?'selected':''}>${c[1]}</option>`).join('')}</select></label>
+      <label style="display:flex;gap:10px;align-items:center;font-weight:600;margin-top:12px"><input type="checkbox" id="sdBris" style="width:28px;height:28px;accent-color:var(--warn,#c0392b)"> ⚠ Bris ou problème de qualité</label>
       <label style="font-weight:600;display:block;margin-top:10px">Commentaire (obligatoire)<textarea id="sdTxt" rows="4" style="width:100%" placeholder="Ex. : vitres pour Collins, rangées au rack B…"></textarea></label>
-      <label style="font-weight:600;display:block;margin-top:10px">📍 Emplacement <input class="rempl" id="sdEmpl" placeholder="A2" maxlength="20" autocapitalize="characters"></label></div>`;
+      <label style="font-weight:600;display:block;margin-top:10px">📍 Emplacement <input class="rempl" id="sdEmpl" placeholder="A2" maxlength="20" autocapitalize="characters"></label>${photoZone()}</div>`;
   const corps=!dos||!ouvertes.length
     ?sdHtml
     :`<div class="zone"><h3>Colis sur le bon</h3><div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>${entete}
@@ -719,7 +702,7 @@ function ouvrirRec(i){
       <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>📍</th><th>Ligne de commande</th></tr>${lignesColis||'<tr><td colspan="5">Aucun colis lu.</td></tr>'}</table>
       <div id="recTot" class="aide" style="margin-top:6px"></div>${dejaHtml}</div>
     <div class="zone"><label style="display:flex;gap:10px;align-items:center;font-weight:600"><input type="checkbox" id="recBris" style="width:28px;height:28px;accent-color:var(--warn,#c0392b)"> ⚠ Bris ou problème de qualité (égratignure, moustiquaire à régler…)</label>
-      <div id="recBrisZone" hidden style="margin-top:8px"><textarea id="recBrisTxt" rows="3" placeholder="Décrivez le problème (obligatoire) : lequel, sur quel article…" style="width:100%"></textarea></div>
+      <div id="recBrisZone" hidden style="margin-top:8px"><textarea id="recBrisTxt" rows="3" placeholder="Décrivez le problème (obligatoire) : lequel, sur quel article…" style="width:100%"></textarea>${photoZone()}</div>
       <div style="margin-top:10px"><button class="btn" type="button" id="recComBtn">💬 Ajouter un commentaire</button> <small id="recComVu" style="color:var(--muted)"></small></div></div>`;
   dlg.innerHTML=`<div class="feuille">
     <div class="ent"><div class="m">RÉCEPTION</div><div style="display:flex;gap:12px;align-items:center"><div class="t">${esc(r.fournisseur||'Fournisseur')}<b id="recTitre">${r.so?'SO-'+esc(r.so):(r.poLabel?'PO '+esc(r.poLabel):'Sans SO')}</b></div><button class="fermer noprint" type="button" aria-label="Fermer" id="recFermer">×</button></div></div>
@@ -735,6 +718,7 @@ function ouvrirRec(i){
   </div>`;
   document.getElementById('recFermer').onclick=()=>dlg.close();
   dlg.showModal();
+  brancherPhotos();
   const cks=()=>[...dlg.querySelectorAll('.rck')];
   const maj=()=>{const t=document.getElementById('recTot');if(t)t.textContent=cks().filter(c=>c.checked).length+' colis cochés sur '+cks().length+'.'};
   cks().forEach(c=>c.onchange=maj);maj();
@@ -769,50 +753,75 @@ function ouvrirRec(i){
       const bris=document.getElementById('recBris').checked, txtBris=document.getElementById('recBrisTxt').value.trim();
       if(bris&&!txtBris){msg.innerHTML='<div class="alerte">Décrivez le bris ou le problème de qualité.</div>';return}
       const com=document.getElementById('recComTxt').value.trim();
-      extra={bris:bris,commentaire:[bris?'BRIS / QUALITÉ : '+txtBris:'',com].filter(String).join('\n'),manquants:manquants.join('\n')};
+      extra={bris:bris,commentaire:[bris?'BRIS / QUALITÉ : '+txtBris:'',com].filter(String).join('\n'),manquants:manquants.join('\n'),photos:PHOTOS.slice()};
     }
-    enregistrerFond(r,[NIP,r.id,dos?dos.dossierId:'',lignes,!!ignorer,extra],ignorer?'Bon écarté':'Réception enregistrée');
+    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
+    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
+    appelerGs('confirmerReception',[NIP,r.id,dos?dos.dossierId:'',lignes,!!ignorer,extra],x=>{
+      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
+      msg.innerHTML=`<div class="ok"><b>${ignorer?'Bon écarté':'Réception enregistrée'}</b>${!ignorer&&x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été changé dans Zoho.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
+      chargerRec();
+    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
   };
   if(document.getElementById('recEmplTous'))document.getElementById('recEmplTous').oninput=e=>dlg.querySelectorAll('.rempl[data-c]').forEach(x=>x.value=e.target.value);
   const envoyerSd=()=>{
     const msg=document.getElementById('recMsg');
     const txt=document.getElementById('sdTxt').value.trim(), cat=document.getElementById('sdCat').value, em=document.getElementById('sdEmpl').value.trim().toUpperCase();
-    const ok=[],manque=[];
-    cks().forEach(c=>{const co=r.colis[+c.dataset.c];(c.checked?ok:manque).push((co.qte==null?'?':co.qte)+' '+co.desc)});
-    if(cks().length&&!ok.length){msg.innerHTML='<div class="alerte">Cochez au moins un colis reçu, ou touchez « Ignorer ce bon ».</div>';return}
     if(!txt){msg.innerHTML='<div class="alerte">Écrivez un commentaire (ce que c’est, pour qui, où c’est rangé).</div>';return}
-    const extra={bris:false,commentaire:txt+(em?'\nEmplacement : '+em:'')+(ok.length?'\nReçu :\n'+ok.join('\n'):''),manquants:manque.join('\n'),categorie:cat};
-    enregistrerFond(r,[NIP,r.id,'',[],false,extra],'Réception enregistrée');
+    const bris=document.getElementById('sdBris').checked;
+    const extra={bris:bris,commentaire:(bris?'BRIS / QUALITÉ : ':'')+txt+(em?'\nEmplacement : '+em:''),manquants:'',categorie:cat,photos:PHOTOS.slice()};
+    dlg.querySelectorAll('button').forEach(b=>b.disabled=true);
+    msg.innerHTML='<div class="charge" style="padding:12px">Enregistrement…</div>';
+    appelerGs('confirmerReception',[NIP,r.id,'',[],false,extra],x=>{
+      if(!x||!x.ok){dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">${esc(x&&x.err||'Erreur')}</div>`;return}
+      msg.innerHTML=`<div class="ok"><b>Réception enregistrée</b>${x.zoho&&x.zoho.simulation?'<small>Mode essai : rien n’a été déposé.</small>':''}<button class="btn" type="button" onclick="document.getElementById('rec').close()">Terminer</button></div>`;
+      chargerRec();
+    },err=>{dlg.querySelectorAll('button').forEach(b=>b.disabled=false);msg.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
   };
   if(document.getElementById('recSd'))document.getElementById('recSd').onclick=envoyerSd;
   if(document.getElementById('recOk'))document.getElementById('recOk').onclick=()=>envoyer(false);
   document.getElementById('recIgn').onclick=()=>{if(confirmerIgnorer())envoyer(true)};
 }
-// Enregistrement instantané : on ferme le bon tout de suite et l'envoi se termine en arrière-plan.
-// En cas d'erreur, un avis reste affiché et le bon revient dans la liste.
-let envoisEnCours=0;
-function avisRec(html,cls,duree){
-  let t=document.getElementById('avisRec');
-  if(!t){t=document.createElement('div');t.id='avisRec';t.setAttribute('role','status');document.body.appendChild(t)}
-  t.className='avisrec '+(cls||'');t.innerHTML=html;t.hidden=false;
-  clearTimeout(t._h);if(duree)t._h=setTimeout(()=>{t.hidden=true},duree);
-  t.onclick=()=>{t.hidden=true};
-}
-function enregistrerFond(r,args,titre){
-  const dlg=document.getElementById('rec');
-  RECS_ENVOYEES[r.id]=Date.now();RECS=RECS.filter(x=>x!==r);rendreRec();dlg.close();
-  envoisEnCours++;
-  avisRec(`✓ <b>${esc(titre)}</b> <small>— ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''}</small>`,'okrec',3500);
-  const fin=()=>{envoisEnCours--;if(!envoisEnCours)chargerRec()};
-  appelerGs('confirmerReception',args,x=>{
-    if(!x||!x.ok){avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : ${esc(x&&x.err||'Erreur')}. Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');delete RECS_ENVOYEES[r.id];fin();return}
-    if(x.zoho&&x.zoho.simulation)avisRec(`✓ <b>${esc(titre)}</b> <small>— mode essai : rien n’a été changé dans Zoho.</small>`,'okrec',5000);
-    fin();
-  },err=>{avisRec(`⚠ <b>Pas enregistré</b> — ${esc(r.fournisseur||'')} ${r.so?'SO-'+esc(r.so):''} : connexion impossible (${esc(err)}). Le bon est revenu dans la liste. <small>(toucher pour fermer)</small>`,'errrec');delete RECS_ENVOYEES[r.id];fin()});
-}
+// ---- Photos de réception (bris, problème) : prises avec la tablette, réduites avant l'envoi (max 8) ----
+let PHOTOS=[];
+function photoZone(){return `<div id="phZone" style="margin-top:10px"><div style="font-weight:600;margin-bottom:6px">📷 Photos (bris, problème)</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn" type="button" id="phPrise">📷 Prendre une photo</button>
+    <button class="btn" type="button" id="phGal">🖼 Choisir dans la galerie</button></div>
+  <input type="file" accept="image/*" capture="environment" id="phInPrise" hidden>
+  <input type="file" accept="image/*" multiple id="phInGal" hidden>
+  <div id="phListe" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+  <small id="phMsg" style="color:var(--muted)"></small></div>`}
+function compresserPhoto(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{const M=1600;let w=img.width,h=img.height;const k=Math.min(1,M/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);
+    const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);URL.revokeObjectURL(u);
+    ok(c.toDataURL('image/jpeg',0.72).split(',')[1])};
+  img.onerror=()=>{URL.revokeObjectURL(u);ko('photo illisible')};img.src=u})}
+function dessinerPhotos(){const l=document.getElementById('phListe');if(!l)return;
+  l.innerHTML=PHOTOS.map((b,i)=>`<div style="position:relative"><img alt="Photo ${i+1}" src="data:image/jpeg;base64,${b}" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line,#444)"><button type="button" data-ph="${i}" aria-label="Retirer la photo ${i+1}" style="position:absolute;top:-6px;right:-6px;width:28px;height:28px;border-radius:50%;border:0;background:#c0392b;color:#fff;font-size:16px">✕</button></div>`).join('');
+  l.querySelectorAll('button[data-ph]').forEach(x=>x.onclick=()=>{PHOTOS.splice(+x.dataset.ph,1);dessinerPhotos()});
+  const m=document.getElementById('phMsg');if(m)m.textContent=PHOTOS.length?PHOTOS.length+' photo'+(PHOTOS.length>1?'s':'')+' (envoyée'+(PHOTOS.length>1?'s':'')+' avec « Enregistrer »)':''}
+function brancherPhotos(){if(!document.getElementById('phZone'))return;
+  const ajouter=async fichiers=>{const m=document.getElementById('phMsg');
+    for(const f of fichiers){if(PHOTOS.length>=8){m.textContent='Maximum 8 photos.';break}
+      try{m.textContent='Préparation de la photo…';PHOTOS.push(await compresserPhoto(f))}catch(e){m.textContent='Photo impossible : '+e}}
+    dessinerPhotos()};
+  const a=document.getElementById('phInPrise'),b=document.getElementById('phInGal');
+  document.getElementById('phPrise').onclick=()=>a.click();document.getElementById('phGal').onclick=()=>b.click();
+  a.onchange=()=>{ajouter([...a.files]);a.value=''};b.onchange=()=>{ajouter([...b.files]);b.value=''};dessinerPhotos()}
 function confirmerIgnorer(){const m=document.getElementById('recMsg');if(m.dataset.ok==='1')return true;m.dataset.ok='1';m.innerHTML='<div class="alerte">Touchez « Ignorer ce bon » encore une fois pour l’écarter.</div>';return false}
 const nomF=n=>{let s=String(n||'').replace(/^[\d\-\s]+-\s*/,'').replace(/\s+(modular enclosures|enclosures)?\s*inc\.?$/i,'').trim();if(s&&s===s.toUpperCase())s=s.toLowerCase().replace(/(^|[\s\-'])\S/g,c=>c.toUpperCase());return s};
 let nipSauve='';try{nipSauve=localStorage.getItem('horaire-nip')||''}catch(e){}
+// Ouverture instantanée : on affiche tout de suite la dernière copie gardée sur la tablette, puis on la remplace dès que la nouvelle arrive.
+try{
+  const sauv=localStorage.getItem('horaire-data');
+  if(sauv){
+    DATA=JSON.parse(sauv);DATA.jobs=placer(DATA.jobs||[]);NIP=nipSauve;
+    document.getElementById('ecranNip').hidden=true;document.getElementById('app').hidden=false;
+    boutons();rendre();
+    document.getElementById('maj').textContent='Dernière copie affichée — mise à jour…';
+  }
+}catch(e){DATA=null}
 charger(nipSauve,true); // sans NIP configuré, l'horaire s'ouvre directement; sinon l'écran NIP apparaît
 </script>
 </body>
