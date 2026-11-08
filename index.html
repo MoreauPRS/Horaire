@@ -158,6 +158,72 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
 .alerte{background:var(--Bbg);border:1px solid var(--B);border-radius:10px;padding:12px 14px;font-size:14px}
 @media print{body>*:not(#bon){display:none!important}dialog#bon{position:static;width:100%;height:auto;max-height:none;border:none}.sig,.noprint{display:none!important}}
 @media (prefers-reduced-motion:no-preference){.job{transition:transform .12s}.job:hover{transform:translateY(-1px)}}
+/* ===== Production (moulures) ===== */
+.pr{display:grid;gap:14px}
+.pr .tuiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pr .tuile{background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:8px 14px}
+.pr .tuile small{color:var(--muted);display:block}
+.pr .tuile b{font-family:var(--display);font-size:28px;line-height:1.1}
+.pr .bandeau{background:var(--Bbg);border-left:4px solid var(--B);border-radius:0 8px 8px 0;padding:10px 14px;font-weight:600}
+.pr .bandeau.err{background:#fde8e5;border-color:var(--today);color:#8a2217}
+.pr .bandeau.ok{background:var(--Cbg);border-color:var(--ok);color:var(--ok)}
+.pr .sous{display:flex;gap:8px;flex-wrap:wrap}
+.pr .sous .btn[aria-selected="true"],.pr .btn.sel{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.pr .btn.vert{border-color:var(--ok);color:var(--ok)}
+.pr .btn.gros{font-size:20px}
+.pr .barre{background:var(--panel);border:1.5px solid var(--fg);border-radius:10px;padding:10px 12px;display:grid;gap:8px}
+.pr .barre.coupee{border-color:var(--line);background:var(--soft)}
+.pr .barre.coupee .bt{color:var(--muted)}
+.pr .bh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.pr .bt{font-family:var(--display);font-size:22px;font-weight:700}
+.pr .bt small{font-family:var(--body);font-weight:400;color:var(--muted);font-size:14px}
+.pr .rail{display:flex;height:40px;border:1px solid var(--fg);border-radius:6px;overflow:hidden;background:repeating-linear-gradient(45deg,#eef1f4,#eef1f4 6px,#e1e6eb 6px,#e1e6eb 12px)}
+.pr .seg{color:#fff;font-family:var(--display);font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;border-right:2px solid #fff;overflow:hidden;white-space:nowrap;cursor:pointer;border-top:0;border-bottom:0;border-left:0;padding:0}
+.pr .seg.att{box-shadow:inset 0 0 0 4px #c98a00}
+.pr .seg.fait{background:#b8c0c8!important}
+.pr .puces{display:flex;gap:6px;flex-wrap:wrap}
+.pr .puce{font-family:var(--display);font-size:16px;font-weight:600;border:1.5px solid var(--line);background:var(--panel);color:var(--fg);padding:4px 10px;border-radius:8px;min-height:36px;cursor:pointer}
+.pr .puce.att{border-color:#c98a00;background:#fff1d6;color:#5b3a00}
+.pr .puce.fait{background:var(--soft);color:var(--muted)}
+.pr .zoneEt{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:14px;align-items:start}
+@media (max-width:760px){.pr .zoneEt{grid-template-columns:1fr}.pr .tuiles{grid-template-columns:1fr 1fr 1fr}}
+.pr .et{width:340px;max-width:100%;aspect-ratio:90/29;border:2px dashed var(--fg);border-radius:6px;padding:6px 9px;background:#fff;color:#111;display:flex;flex-direction:column;justify-content:space-between}
+.pr .et .l1,.pr .et .l2{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.pr .et .c{font-family:var(--display);font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden}
+.pr .et .pun{font-family:var(--display);font-weight:700;font-size:16px;padding:0 9px;background:#111;color:#fff;border-radius:3px;white-space:nowrap}
+.pr .et .r{font-family:var(--display);font-weight:700;font-size:44px;line-height:1}
+.pr .et .n{font-family:var(--display);font-weight:700;font-size:36px;line-height:1;white-space:nowrap}
+.pr .et .b{font-family:var(--display);font-weight:600;font-size:13px;color:#3a4650;white-space:nowrap}
+.pr .rang{display:grid;grid-template-columns:40px 150px minmax(0,1fr) 110px 190px;gap:10px;align-items:center;text-align:left;border:1.5px solid var(--line);background:var(--panel);color:var(--fg);border-radius:10px;padding:8px 12px;min-height:56px;font:inherit;cursor:pointer;width:100%}
+.pr .rang.att{border-color:#c98a00;background:#fff8e8}
+.pr .rang.fait{border-color:var(--ok);background:var(--Cbg)}
+.pr .rang.bloc{background:var(--soft);cursor:not-allowed;color:var(--muted)}
+.pr .rond{width:30px;height:30px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-weight:700}
+.pr .rang.fait .rond{background:var(--ok);color:#fff;border-color:var(--ok)}
+.pr .code{font-family:var(--display);font-size:22px;font-weight:700}
+.pr .carte{background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:8px}
+.pr .carte.fin{border-color:var(--ok)}
+.pr .pastille2{font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:999px}
+.pr .lig{display:grid;grid-template-columns:minmax(0,1.4fr) 110px 150px 40px;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:8px 6px}
+.pr .lig.t{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:2px solid var(--fg)}
+.pr .lig.l2{grid-template-columns:90px minmax(0,1fr) 150px 120px 40px}
+.pr input,.pr select{font:inherit;font-size:16px;padding:10px;border:1.5px solid var(--line);border-radius:8px;background:var(--soft);color:var(--fg);min-height:44px;width:100%}
+.pr .g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pr .coloré{display:inline-block;width:22px;height:22px;border-radius:5px;flex:none}
+.pr .reste{color:var(--muted);font-size:14px}
+.pr .vide{color:var(--muted);padding:24px;text-align:center}
+@media print{@page etiq{size:3.5in 1.1in;margin:0}
+ body.impEt>*:not(#zonePrint){display:none!important}
+ body.impEt>#zonePrint{display:block!important}
+ #zonePrint .eti{page:etiq;width:3.5in;height:1.1in;box-sizing:border-box;padding:.06in .1in;display:flex;flex-direction:column;justify-content:space-between;color:#000;background:#fff;page-break-after:always;break-after:page;overflow:hidden;font-family:"Arial Narrow",Arial,sans-serif}
+ #zonePrint .eti .l1,#zonePrint .eti .l2{display:flex;justify-content:space-between;align-items:baseline;gap:6pt}
+ #zonePrint .eti .c{font-weight:700;font-size:12pt;white-space:nowrap;overflow:hidden}
+ #zonePrint .eti .pun{font-weight:700;font-size:13pt;background:#000;color:#fff;padding:0 7pt;border-radius:2pt;white-space:nowrap}
+ #zonePrint .eti .r{font-weight:700;font-size:32pt;line-height:1}
+ #zonePrint .eti .n{font-weight:700;font-size:26pt;line-height:1;white-space:nowrap}
+ #zonePrint .eti .b{font-size:10pt;white-space:nowrap}}
+#zonePrint{display:none}
+
 </style>
 </head>
 <body>
@@ -184,6 +250,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
     <button class="btn" type="button" role="tab" id="tabCue" aria-selected="false">Cueillettes <span class="nb" id="nbCue" hidden></span></button>
     <button class="btn" type="button" role="tab" id="tabLiv" aria-selected="false">Livraisons <span class="nb" id="nbLiv" hidden></span></button>
     <button class="btn" type="button" role="tab" id="tabRec" aria-selected="false">Réceptions <span class="nb" id="nbRec" hidden></span></button>
+    <button class="btn" type="button" role="tab" id="tabProd" aria-selected="false">Production <span class="nb" id="nbProd" hidden></span></button>
   </div>
   <section id="vueBons" hidden style="display:grid;gap:12px">
     <div class="aide" style="color:var(--muted)">Touchez le client pour ouvrir son bon, cocher ce qui part, faire signer et enregistrer.</div>
@@ -193,6 +260,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
     <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez. <span style="opacity:.6">[page v8 6 nov. : messages d’erreur et options]</span></div>
     <div class="listeBons" id="listeRec"><div class="charge">Chargement…</div></div>
   </section>
+  <section id="vueProd" hidden style="display:grid;gap:12px"></section>
   <div id="vueInst" style="display:grid;gap:20px">
   <form class="cherche" id="cherche" role="search">
     <label for="so">Trouver un projet</label>
@@ -453,7 +521,7 @@ function charger(nip,premiere){
     const h=new Date();
     document.getElementById('maj').textContent='Mis à jour à '+h.getHours()+' h '+String(h.getMinutes()).padStart(2,'0');
     boutons();rendre();if(document.getElementById('so').value.trim())chercher(false);
-    if(premiere){montrerVue(vue)}else if(vue==='cue'||vue==='liv')chargerBons();else if(vue==='rec')chargerRec();
+    if(premiere){montrerVue(vue)}else if(vue==='cue'||vue==='liv')chargerBons();else if(vue==='rec')chargerRec();else if(vue==='prod'&&PR.sous!=='nouvelle')chargerProd();
   },err=>{
     if(premiere&&!DATA){montrerNip('Connexion impossible : '+err)}
     else document.getElementById('maj').textContent='Hors ligne — dernière version affichée';
@@ -480,18 +548,22 @@ function montrerVue(v){
   document.getElementById('tabCue').setAttribute('aria-selected',v==='cue');
   document.getElementById('tabLiv').setAttribute('aria-selected',v==='liv');
   document.getElementById('tabRec').setAttribute('aria-selected',v==='rec');
+  document.getElementById('tabProd').setAttribute('aria-selected',v==='prod');
   document.getElementById('vueInst').hidden=v!=='inst';
   document.getElementById('vueBons').hidden=!(v==='cue'||v==='liv');
   document.getElementById('vueRec').hidden=v!=='rec';
+  document.getElementById('vueProd').hidden=v!=='prod';
   document.getElementById('filtres').hidden=v!=='inst';
-  document.getElementById('titre').textContent=v==='inst'?'Horaire des installations':v==='cue'?'Cueillettes':v==='liv'?'Livraisons':'Réceptions';
+  document.getElementById('titre').textContent=v==='inst'?'Horaire des installations':v==='cue'?'Cueillettes':v==='liv'?'Livraisons':v==='prod'?'Production':'Réceptions';
   if(v==='cue'||v==='liv')chargerBons();
   if(v==='rec')chargerRec();
+  if(v==='prod')chargerProd();
 }
 document.getElementById('tabInst').onclick=()=>montrerVue('inst');
 document.getElementById('tabCue').onclick=()=>montrerVue('cue');
 document.getElementById('tabLiv').onclick=()=>montrerVue('liv');
 document.getElementById('tabRec').onclick=()=>montrerVue('rec');
+document.getElementById('tabProd').onclick=()=>montrerVue('prod');
 const resteBon=b=>(b.colis||[]).reduce((n,g)=>n+g.items.filter(i=>!i.remis&&!i.attente).length,0);
 const srcColis=b=>{const f=(b.colis||[]).map(g=>String(g.groupe||'').split(' · ')[0]).filter(x=>x&&!/^moreau/i.test(x));return !f.length?'':f.length===1?`Selon le bon de livraison de ${f[0]}.`:`Selon les bons de livraison des fournisseurs (${f.join(', ')}).`};
 const emplListe=t=>String(t||'').split(',').map(x=>x.trim()).filter(Boolean);
@@ -899,6 +971,269 @@ try{
     document.getElementById('maj').textContent='Dernière copie affichée — mise à jour…';
   }
 }catch(e){DATA=null}
+// ================= Production (moulures) : couper, punch, vérifier ; Simon : bons, lot, nouvelle commande =================
+const PR={lots:[],bons:[],attente:{},couleurs:['Blanc','Noir','Bronze','Driftwood','Gris'],params:{minBarres:15,devanceMax:7},lotId:'',sous:'',couleur:'',vue:'francois',code:null,S:null,msg:'',msgType:'',sel:null,nom:'',essai:false,form:null,filtre:'tous',dev:3,seul:false,exclus:{},plan:null,charge:false,occupe:false};
+try{PR.code=localStorage.getItem('horaire-simon')||null;if(PR.code)PR.vue='simon'}catch(e){}
+const PR_COUL=['#1f5fa8','#2f8a4e','#b7791f','#7a4fb5','#138a99','#c0392b'];
+const prAppel=(fn,args)=>new Promise((ok,ko)=>appelerGs(fn,args,ok,ko));
+const fmtPo=x=>{let w=Math.floor(x+1e-9),f=Math.round((x-w)*16);if(f===16){w++;f=0}if(!f)return w+'"';let n=f,d=16;while(n%2===0){n/=2;d/=2}return w+' '+n+'/'+d+'"'};
+function parsePo(t){ // « 71 3/8 », « 71-3/8 », « 71.375 », « 71 3/8" »
+  t=String(t||'').replace(/["”″]/g,'').replace(/-/g,' ').trim();if(!t)return NaN;
+  const m=t.match(/^(\d+(?:\.\d+)?)(?:\s+(\d+)\s*\/\s*(\d+))?$/);
+  if(m)return Math.round((parseFloat(m[1])+(m[2]?m[2]/m[3]:0))*16)/16;
+  const f=t.match(/^(\d+)\s*\/\s*(\d+)$/);return f?Math.round(f[1]/f[2]*16)/16:NaN;
+}
+const prLot=()=>PR.lots.find(l=>l.id===PR.lotId)||PR.lots[0]||null;
+const prCut=(l,b)=>!!(l.coupees||{})[b.no];
+const prPun=(l,pid)=>!!(l.punches||{})[pid];
+const prPret=(l,b,c)=>prCut(l,b)&&(!c.punch||prPun(l,c.pid));
+const prCoul=(l,bonId)=>PR_COUL[Math.max(0,l.bons.indexOf(bonId))%PR_COUL.length];
+function prPieces(l){const o=[];l.barres.forEach(b=>b.cuts.forEach(c=>o.push({b,c})));return o}
+
+function chargerProd(){
+  const el=document.getElementById('vueProd');
+  if(!PR.charge)el.innerHTML='<div class="charge">Chargement…</div>';
+  prAppel('getProduction',[NIP]).then(r=>{
+    if(!r||!r.ok){el.innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
+    PR.lots=r.lots||[];PR.bons=r.bons||[];PR.attente=r.attente||{};PR.couleurs=r.couleurs||PR.couleurs;PR.params=r.params||PR.params;PR.essai=!!r.essai;PR.charge=true;PR.plan=null;
+    if(!PR.couleur||PR.couleurs.indexOf(PR.couleur)<0)PR.couleur=(PR.lots[0]||{}).couleur||PR.couleurs.find(c=>PR.attente[c])||PR.couleurs[0];
+    const lc=prLots();if(!lc.some(l=>l.id===PR.lotId))PR.lotId=(lc[0]||{}).id||'';
+    const nb=document.getElementById('nbProd');if(nb){nb.hidden=!PR.lots.length;nb.textContent=PR.lots.length}
+    if(PR.code)return prAppel('getProductionSimon',[NIP,PR.code]).then(s=>{
+      if(s&&s.ok)PR.S=s;else{PR.S=null;PR.vue='francois';if(s&&/Code Simon/.test(s.err||'')){PR.code=null;try{localStorage.removeItem('horaire-simon')}catch(e){}}}
+    });
+  }).then(()=>rendreProd(),err=>{el.innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+}
+function prMsg(t,type){PR.msg=t||'';PR.msgType=type||''}
+const prLots=()=>PR.lots.filter(l=>l.couleur===PR.couleur);
+const prLotVisible=()=>prLots().find(l=>l.id===PR.lotId)||prLots()[0]||null;
+
+function rendreProd(){
+  const el=document.getElementById('vueProd');
+  const simon=PR.vue==='simon'&&!!PR.S;
+  let h='<div class="pr">';
+  if(PR.essai)h+='<div class="bandeau">Mode essai : les données sont dans le dossier « essai » et rien n’est envoyé à Zoho.</div>';
+  if(simon){
+    if(['bons','nouvelle'].indexOf(PR.sous)<0)PR.sous='bons';
+    h+=`<div class="sous"><button class="btn" type="button" role="tab" aria-selected="${PR.sous==='bons'}" data-a="sous" data-x="bons">Bons de moulures</button><span style="flex:1"></span><button class="btn plein" type="button" data-a="nouveau">+ Nouvelle commande</button><button class="btn" type="button" data-a="vueF">Vue François</button></div>`;
+    if(PR.msg)h+=`<div class="bandeau ${PR.msgType}">${esc(PR.msg)}</div>`;
+    h+=(PR.sous==='nouvelle'?vNouvelle:vBons)()+'</div>';
+    el.innerHTML=h;return;
+  }
+  // ----- François : toutes les couleurs en haut, puis préparer / couper / punch / vérifier
+  h+='<div class="sous">'+PR.couleurs.map(c=>{
+    const nl=PR.lots.filter(l=>l.couleur===c).length, a=PR.attente[c]||{bons:0};
+    const t=[nl?nl+' lot'+(nl>1?'s':''):'',a.bons?a.bons+' bon'+(a.bons>1?'s':'')+' prêt'+(a.bons>1?'s':''):''].filter(Boolean).join(' · ');
+    return `<button class="btn ${PR.couleur===c?'sel':''}" type="button" data-a="couleur" data-x="${esc(c)}">${esc(c)}${t?' · '+t:''}</button>`}).join('')
+    +'<span style="flex:1"></span>'+(PR.S?'<button class="btn" type="button" data-a="vueS">Vue Simon</button>':'<button class="btn" type="button" data-a="modeSimon">Mode Simon</button>')+'</div>';
+  const lots=prLots(), l=prLotVisible();
+  if(!PR.sous||(PR.sous!=='preparer'&&!l))PR.sous=l?'couper':'preparer';
+  if(lots.length>1)h+='<div class="sous">'+lots.map(o=>`<button class="btn ${o.id===l.id?'sel':''}" type="button" data-a="lot" data-x="${esc(o.id)}">Lot ${esc(o.id)}${o.petit?' · petit lot':''}</button>`).join('')+'</div>';
+  if(l){
+    const P=prPieces(l), nCut=l.barres.filter(b=>prCut(l,b)).length, needP=P.filter(x=>x.c.punch), nP=needP.filter(x=>prPun(l,x.c.pid)).length, nR=P.filter(x=>prPret(l,x.b,x.c)).length;
+    const att=P.filter(x=>prCut(l,x.b)&&x.c.punch&&!prPun(l,x.c.pid)).length;
+    h+=`<div class="tuiles"><div class="tuile"><small>Barres coupées</small><b>${nCut} / ${l.barres.length}</b></div><div class="tuile"><small>Punch fait</small><b>${nP} / ${needP.length}</b></div><div class="tuile"><small>Pièces prêtes</small><b style="color:var(--ok)">${nR} / ${P.length}</b></div></div>`;
+    if(att)h+=`<div class="bandeau">⚠ ${att} pièce(s) coupée(s) attendent encore leur punch.</div>`;
+  }
+  const sousF=[['preparer','Préparer un lot'],['couper','1 · Couper'],['punch','2 · Punch'],['verif','3 · Vérifier et terminer']];
+  h+='<div class="sous" role="tablist">'+sousF.map(s=>`<button class="btn" type="button" role="tab" aria-selected="${PR.sous===s[0]}" data-a="sous" data-x="${s[0]}">${s[1]}</button>`).join('')+'</div>';
+  if(PR.msg)h+=`<div class="bandeau ${PR.msgType}">${esc(PR.msg)}</div>`;
+  h+=({preparer:vLot,couper:vCouper,punch:vPunch,verif:vVerif}[PR.sous]||vCouper)(l);
+  h+='</div>';
+  el.innerHTML=h;
+  if(PR.sous==='preparer'&&!PR.plan)prPlan();
+}
+
+// ---------------- François : 1 · Couper
+function etiquette(l,c,b){
+  return {client:String(c.client||'').toUpperCase(),so:c.so?'SO-'+c.so:'',rep:c.rep,len:fmtPo(c.len),couleur:c.couleur||l.couleur,barre:`Barre ${b.no} · coupe ${c.ord}/${b.cuts.length}`,punch:c.punch};
+}
+function htmlEt(e,cls){return `<div class="${cls}"><div class="l1"><span class="c">${esc(e.client)}${e.so?' · '+esc(e.so):''}</span>${e.punch?`<span class="pun">PUNCH ${e.punch}</span>`:''}</div><div class="l2"><span class="r">${esc(e.rep)}</span><span class="n">${esc(e.len)}</span></div><div class="b">${esc(e.barre)} · ${esc(e.couleur)} U</div></div>`}
+function vCouper(l){
+  if(!l)return '<div class="vide">Aucun lot de coupe lancé pour le moment.</div>';
+  const P=prPieces(l);
+  const sel=P.find(x=>x.c.pid===PR.sel)||P.find(x=>!prCut(l,x.b))||P[0];
+  let h=`<div class="zoneEt"><div class="reste">Coupez dans l’ordre. Touchez « Coupée » quand la barre est finie : elle se grise. Les pièces qui attendent encore leur punch restent en couleur avec un cadre orange. Touchez une pièce pour voir son étiquette.</div>
+    <div><div class="reste" style="text-transform:uppercase;letter-spacing:.06em;font-size:12px">Étiquette · 1,1 × 3,5 po</div>${htmlEt(etiquette(l,sel.c,sel.b),'et')}</div></div>
+    <div><button class="btn" type="button" data-a="impLot">Imprimer tout le lot (${P.length} étiquettes, barre par barre)</button></div>`;
+  l.barres.forEach(b=>{
+    const cut=prCut(l,b);
+    h+=`<div class="barre ${cut?'coupee':''}"><div class="bh"><div class="bt">Barre ${b.no} <small>· ${b.reste>=12?'retaille':'chute'} ${fmtPo(b.reste)}</small></div><div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" type="button" data-a="impBarre" data-x="${b.no}">Imprimer la barre (${b.cuts.length})</button>
+      <button class="btn gros ${cut?'':'plein'}" type="button" data-a="coupe" data-x="${b.no}">${cut?'✓ Coupée · annuler':'Coupée'}</button></div></div>
+      <div class="rail">${b.cuts.map(c=>{const att=cut&&c.punch&&!prPun(l,c.pid);return `<button type="button" class="seg ${cut&&!att?'fait':''} ${att?'att':''}" style="width:${(c.len+0.125)/218*100}%;background:${prCoul(l,c.bon)}" data-a="sel" data-x="${esc(c.pid)}" title="${esc(c.rep)}">${esc(fmtPo(c.len).replace('"',''))}${c.punch?' · P'+c.punch:''}</button>`}).join('')}</div>
+      <div class="puces">${b.cuts.map(c=>{const ok=prPret(l,b,c),att=cut&&c.punch&&!prPun(l,c.pid);return `<button type="button" class="puce ${ok?'fait':''} ${att?'att':''}" data-a="sel" data-x="${esc(c.pid)}">${esc(String(c.client).slice(0,5))} ${esc(c.rep)}${c.punch?' · P'+c.punch:''}${ok?' ✓':''}</button>`}).join('')}</div></div>`;
+  });
+  return h;
+}
+// ---------------- 2 · Punch
+function vPunch(l){
+  if(!l)return '<div class="vide">Aucun lot de coupe lancé pour le moment.</div>';
+  const P=prPieces(l);
+  let h='<div class="reste">Seules les pièces dont la barre est coupée peuvent être punchées. Une pièce grise attend encore sa coupe. Touchez la pièce quand le punch est fait.</div>';
+  [1,2].forEach(k=>{
+    const L=P.filter(x=>x.c.punch===k);if(!L.length)return;
+    h+=`<div style="display:grid;gap:6px"><div class="bt" style="border-bottom:2px solid var(--fg);padding-bottom:4px">Punch ${k} <small style="font-family:var(--body);font-weight:400;color:var(--muted)">· ${L.filter(x=>prPun(l,x.c.pid)).length} / ${L.length}</small></div>`;
+    L.forEach(x=>{const cut=prCut(l,x.b),d=prPun(l,x.c.pid);
+      h+=`<button type="button" class="rang ${d?'fait':cut?'att':'bloc'}" data-a="punch" data-x="${esc(x.c.pid)}" ${cut?'':'aria-disabled="true"'}><span class="rond">${d?'✓':''}</span><span class="code">${esc(x.c.rep)}</span><span>${esc(x.c.client)} · ${esc(x.c.so||'')}</span><span class="code" style="font-size:20px">${esc(fmtPo(x.c.len))}</span><span class="reste">${!cut?'Barre '+x.b.no+' pas encore coupée':d?'Punch fait':'À punch'}</span></button>`;
+    });
+    h+='</div>';
+  });
+  if(!P.some(x=>x.c.punch))h+='<div class="vide">Aucune pièce à punch dans ce lot.</div>';
+  return h;
+}
+// ---------------- 3 · Vérifier et terminer
+function vVerif(l){
+  if(!l)return '<div class="vide">Aucun lot de coupe lancé pour le moment.</div>';
+  let h='<div class="reste">Un bon ne peut être terminé que si chaque pièce est coupée et, au besoin, punchée. Ce qui manque est écrit en rouge.</div>';
+  l.bons.forEach(id=>{
+    const b=PR.bons.find(x=>x.id===id);if(!b)return;
+    const fin=b.statut==='terminee', miss=[];
+    const pcs=b.pieces.map(p=>{const x=prPieces(l).find(y=>y.c.pid===p.id);const ok=x&&prPret(l,x.b,x.c);if(!fin&&!ok)miss.push(p.rep+(x&&!prCut(l,x.b)?' pas coupée':' punch '+p.punch+' à faire'));return {p,ok:fin||ok}});
+    const pret=!fin&&!miss.length;
+    h+=`<div class="carte ${fin?'fin':''}"><div class="bh"><div style="display:flex;align-items:center;gap:10px"><span class="coloré" style="background:${prCoul(l,id)}"></span><b style="font-size:18px">${esc(b.client)}</b><span class="reste">${b.so?'SO-'+esc(b.so)+' · ':''}${b.pieces.length} pièce(s) · requis le ${esc(b.dateReq)}${b.modifie?' · <b style="color:var(--today)">Modifié</b>':''}</span></div>
+      <span class="pastille2" style="background:${fin?'var(--Cbg)':pret?'var(--Abg)':'var(--Bbg)'};color:${fin?'var(--ok)':pret?'var(--A)':'#9a6200'}">${fin?'Terminée':pret?'Prêt à terminer':'En production'}</span></div>
+      <div class="puces">${pcs.map(x=>`<span class="puce ${x.ok?'fait':''}" style="cursor:default;${x.ok?'border-color:var(--ok);color:var(--ok)':''}">${esc(x.p.rep)}${x.ok?' ✓':x.p.punch?' · P'+x.p.punch:''}</span>`).join('')}</div>
+      ${!fin&&miss.length?`<div style="color:var(--today);font-weight:600">Il manque : ${esc(miss.join(' · '))}</div>`:''}
+      ${fin?`<div class="reste">Terminé le ${esc(b.terminee&&b.terminee.date||'')} par ${esc(b.terminee&&b.terminee.nom||'')}.</div>`:`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><input id="prNom" style="max-width:240px" placeholder="Nom de la personne" value="${esc(PR.nom)}" ${pret?'':'disabled'}><button class="btn plein gros" type="button" data-a="terminer" data-x="${esc(id)}" ${pret?'':'disabled'}>Terminer ce bon</button></div>`}</div>`;
+  });
+  return h;
+}
+
+// ---------------- Simon : liste des bons (seule page de Simon)
+function vBons(){
+  const S=PR.S;if(!S)return '';
+  const F={brouillon:'Brouillon',validee:'Validée',production:'En production',terminee:'Terminée'};
+  const C={brouillon:['var(--soft)','var(--muted)'],validee:['var(--Abg)','var(--A)'],production:['var(--Bbg)','#9a6200'],terminee:['var(--Cbg)','var(--ok)']};
+  const bons=S.bons.filter(b=>PR.filtre==='tous'||b.statut===PR.filtre).sort((a,b)=>(b.urgent?1:0)-(a.urgent?1:0)||(a.dateReq<b.dateReq?-1:1));
+  let h='<div class="reste">Chaque bon vient de l’outil de mesures ou d’une commande manuelle. Validez-le quand il est prêt à produire : il apparaît alors chez François, qui prépare et lance ses lots.</div><div class="sous">'+['tous','brouillon','validee','production','terminee'].map(k=>`<button class="btn ${PR.filtre===k?'sel':''}" type="button" data-a="filtre" data-x="${k}">${k==='tous'?'Tous':F[k]} · ${S.bons.filter(b=>k==='tous'||b.statut===k).length}</button>`).join('')+'</div>';
+  if(!bons.length)return h+'<div class="vide">Rien à afficher.</div>';
+  bons.forEach(b=>{
+    const nb=b.pieces.length, np=b.pieces.filter(p=>p.punch).length;
+    h+=`<div class="carte" ${b.urgent?'style="border-color:var(--today)"':''}><div class="bh"><div>${b.urgent?'<span class="pastille2" style="background:var(--today);color:#fff;margin-right:6px">Urgent</span>':''}<b style="font-size:18px">${esc(b.client)}</b> <span class="reste">${b.so?'SO-'+esc(b.so)+' · ':''}${esc(b.couleur)} · ${nb} pièce(s)${np?' ('+np+' punch)':''} · requis le ${esc(b.dateReq)} · ${b.source==='mesures'?'outil de mesures':'commande manuelle'}</span></div>
+      <span class="pastille2" style="background:${C[b.statut][0]};color:${C[b.statut][1]}">${F[b.statut]}${b.modifie?' · modifié':''}</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${b.statut==='brouillon'?`<button class="btn vert" type="button" data-a="valider" data-x="${esc(b.id)}">Valider pour production</button>`:''}
+        ${b.statut==='brouillon'||b.statut==='validee'?`<button class="btn" type="button" data-a="modifier" data-x="${esc(b.id)}">Modifier</button>`:''}
+        ${b.statut==='brouillon'?`<button class="btn" type="button" data-a="supprimer" data-x="${esc(b.id)}">Supprimer</button>`:''}</div></div>`;
+  });
+  return h;
+}
+
+// ---------------- François : préparer un lot (une couleur à la fois)
+function prPlan(){
+  if(PR.occupe)return;
+  PR.occupe=true;
+  prAppel('proposerLot',[NIP,PR.couleur,PR.dev,Object.keys(PR.exclus).filter(k=>PR.exclus[k]),PR.seul]).then(r=>{
+    PR.occupe=false;
+    if(!r||!r.ok){prMsg(r&&r.err||'Erreur','err')}else{PR.plan=r;}
+    rendreProd();
+  },e=>{PR.occupe=false;prMsg('Connexion impossible : '+e,'err');rendreProd()});
+}
+function vLot(){
+  const pl=PR.plan, max=PR.params.devanceMax||7;
+  let h=`<div class="reste">Les pièces des bons validés de la couleur sont réparties dans les mêmes barres. On ne dépasse jamais la date requise : on peut seulement devancer une job. Un lot ne part pas sous ${PR.params.minBarres} barres, sauf si la date est contraignante.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>Devancer jusqu’à</b> <button class="btn" type="button" data-a="dev" data-x="-1" aria-label="Moins">−</button><span class="code">${PR.dev}</span><button class="btn" type="button" data-a="dev" data-x="1" aria-label="Plus">+</button> <b>jours ouvrables</b>
+      <span style="flex:1"></span><button class="btn ${PR.seul?'sel':''}" type="button" data-a="seul">Seulement les bons à date contraignante</button></div>`;
+  if(!pl)return h+'<div class="charge">Calcul du plan…</div>';
+  if(!pl.eligibles.length)h+=`<div class="vide">Aucun bon validé en ${esc(PR.couleur)} pour le moment.</div>`;
+  pl.eligibles.forEach(e=>{
+    h+=`<div class="carte" style="opacity:${e.dispo||e.enLot?1:.6}"><div class="bh"><div>${e.urgent?'<span class="pastille2" style="background:var(--today);color:#fff;margin-right:6px">Urgent</span>':e.contraint&&e.dispo?'<span class="pastille2" style="background:var(--Bbg);color:#9a6200;margin-right:6px">Date contraignante</span>':''}<b style="font-size:17px">${esc(e.client)}</b> <span class="reste">${e.so?'SO-'+esc(e.so)+' · ':''}${e.nbPieces} pièce(s) · requis le ${esc(e.dateReq)} · coupe prévue le ${esc(e.prevue)}${e.retard?' · <b style="color:var(--today)">en retard</b>':''}</span></div>
+      <div>${e.statut!=='validee'?'<span class="reste">Brouillon : pas encore validé par Simon</span>':e.enLot?'<span class="reste">Déjà dans un lot</span>':e.dispo?`<button class="btn ${e.inclus?'vert sel':''}" type="button" data-a="excl" data-x="${esc(e.id)}">${e.inclus?'✓ Dans le lot':'Ajouter au lot'}</button>`:`<span class="reste">Trop loin : ${e.j} j de devancement</span>`}</div></div></div>`;
+  });
+  if(pl.plan){
+    const P=pl.plan;
+    h+=`<div class="bandeau ${pl.autorise?(pl.atteint?'ok':''):'err'}">${pl.atteint?`Minimum atteint : ${P.ensemble.nbBarres} barres (minimum ${pl.minBarres}).`:pl.autorise?`Lot sous le minimum (${P.ensemble.nbBarres} barre(s) sur ${pl.minBarres}), mais tous les bons ont une date contraignante : ce lot peut partir seul.`:esc(pl.raison)}</div>`;
+    h+=`<div class="bt">Plan de coupe : barres de 18' 2" (218")</div>`;
+    const idx=pl.eligibles.filter(e=>e.inclus).map(e=>e.id);
+    P.barres.forEach(b=>{h+=`<div style="display:grid;gap:4px"><div class="bh"><b>Barre ${b.no}</b><span class="reste">${b.reste>=12?'retaille':'chute'} ${fmtPo(b.reste)}</span></div><div class="rail">${b.cuts.map(c=>`<div class="seg" style="width:${(c.len+0.125)/218*100}%;background:${PR_COUL[Math.max(0,idx.indexOf(c.bon))%PR_COUL.length]};cursor:default">${esc(fmtPo(c.len).replace('"',''))}${c.punch?' · P'+c.punch:''}</div>`).join('')}</div></div>`;});
+    h+=`<div class="tuiles"><div class="tuile"><small>Barres à sortir</small><b>${P.ensemble.nbBarres}${P.separe.nbBarres>P.ensemble.nbBarres?' (au lieu de '+P.separe.nbBarres+')':''}</b></div><div class="tuile"><small>Reste en jumelant</small><b style="color:var(--ok)">${String(P.ensemble.pctReste).replace('.',',')} %</b></div><div class="tuile"><small>Reste bon par bon</small><b style="color:var(--today)">${String(P.separe.pctReste).replace('.',',')} % · ${P.separe.nbBarres} barre(s)</b></div></div>
+      <div class="reste">« Reste » = bout de barre non utilisé après la coupe (trait de scie de 1/8" inclus), calculé de la même façon des deux côtés. Les restes de 12" et plus sont gardés comme retailles : ${P.ensemble.retailles.length?P.ensemble.retailles.map(fmtPo).join(', '):'aucune'}.</div>
+      <div><button class="btn plein gros" type="button" data-a="lancer" ${pl.autorise?'':'disabled'}>Lancer la production</button></div>`;
+  }else h+='<div class="vide">Aucun bon dans le lot.</div>';
+  return h;
+}
+
+// ---------------- Simon : nouvelle commande / modifier
+function formVide(){return {id:'',client:'',so:'',dateReq:'',couleur:'Blanc',notes:'',urgent:false,lignes:[{rep:'',desc:'',len:'',punch:'0'}]}}
+function vNouvelle(){
+  if(!PR.S)return '';
+  const f=PR.form||(PR.form=formVide());
+  let h=`<div class="reste">${f.id?'Modifier le bon.':'Pour une commande hors de l’outil de mesures.'} Même bon, mêmes statuts : brouillon, puis validé par Simon. Moulure U seulement. Longueur en pouces, ex. 71 3/8.</div>
+   <div class="g3"><label>Client ou dossier<input id="fCli" value="${esc(f.client)}" placeholder="Nom (ex. Chapleau)"></label><label>N° de SO (facultatif)<input id="fSo" value="${esc(f.so)}" inputmode="numeric" placeholder="02633"></label><label>Date requise<input id="fDate" type="date" value="${esc(f.dateReq)}"></label></div>
+   <div class="g3"><label>Couleur<select id="fCoul">${PR.S.params.couleurs.map(c=>`<option ${c===f.couleur?'selected':''}>${c}</option>`).join('')}</select></label><label style="grid-column:span 2">Notes<input id="fNotes" value="${esc(f.notes)}" placeholder="Facultatif"></label></div>
+   <label style="display:flex;gap:10px;align-items:center;font-weight:600"><input id="fUrg" type="checkbox" style="width:28px;height:28px;min-height:0;accent-color:var(--today)" ${f.urgent?'checked':''}> Urgent : à couper tout de suite (peut partir seul, sans attendre le minimum de barres)</label>
+   <div class="lig l2 t"><div>Repère</div><div>Description</div><div>Longueur</div><div>Punch</div><div></div></div>`;
+  f.lignes.forEach((g,i)=>{h+=`<div class="lig l2"><input data-l="${i}" data-k="rep" value="${esc(g.rep)}" placeholder="A1-1" maxlength="12"><input data-l="${i}" data-k="desc" value="${esc(g.desc)}" placeholder="Ex. haut, gauche"><input data-l="${i}" data-k="len" value="${esc(g.len)}" placeholder='71 3/8"' inputmode="text"><select data-l="${i}" data-k="punch"><option value="0" ${g.punch==='0'?'selected':''}>—</option><option value="1" ${g.punch==='1'?'selected':''}>Punch 1</option><option value="2" ${g.punch==='2'?'selected':''}>Punch 2</option></select><button class="btn" type="button" data-a="ligneX" data-x="${i}" aria-label="Supprimer la ligne">✕</button></div>`});
+  h+=`<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="button" data-a="ligneP">+ Ajouter une pièce</button></div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn plein gros" type="button" data-a="enreg">${f.id?'Enregistrer les changements':'Enregistrer en brouillon'}</button><button class="btn" type="button" data-a="annulerForm">Annuler</button></div>`;
+  return h;
+}
+function lireForm(){
+  const f=PR.form;if(!f||PR.sous!=='nouvelle')return;
+  const v=id=>{const e=document.getElementById(id);return e?e.value:''};
+  f.urgent=!!(document.getElementById('fUrg')||{}).checked;f.client=v('fCli');f.so=v('fSo');f.dateReq=v('fDate');f.couleur=v('fCoul')||f.couleur;f.notes=v('fNotes');
+  document.querySelectorAll('#vueProd [data-l]').forEach(e=>{f.lignes[+e.dataset.l][e.dataset.k]=e.value});
+}
+
+// ---------------- impression des étiquettes (Brother QL-820NWBC, 1,1 × 3,5 po)
+function imprimerEt(liste){
+  let z=document.getElementById('zonePrint');if(!z){z=document.createElement('div');z.id='zonePrint';document.body.appendChild(z)}
+  z.innerHTML=liste.map(e=>htmlEt(e,'eti')).join('');
+  document.body.classList.add('impEt');
+  const fin=()=>{document.body.classList.remove('impEt');window.removeEventListener('afterprint',fin)};
+  window.addEventListener('afterprint',fin);
+  window.print();
+}
+
+// ---------------- actions
+const PRA={
+  sous:x=>{lireForm();PR.sous=x;prMsg('');if(x==='preparer')PR.plan=null;rendreProd()},
+  lot:x=>{PR.lotId=x;rendreProd()},
+  sel:x=>{PR.sel=x;rendreProd()},
+  coupe:x=>{const l=prLot(),b=l.barres.find(y=>y.no==x),etat=!prCut(l,b);
+    prAppel('coupeBarre',[NIP,l.id,+x,etat]).then(r=>{if(!r.ok)prMsg(r.err,'err');else{prMsg('');l.coupees=r.coupees;l.punches=r.punches}rendreProd()},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()})},
+  punch:x=>{const l=prLot(),p=prPieces(l).find(y=>y.c.pid===x);if(!p||!prCut(l,p.b))return;const etat=!prPun(l,x);
+    prAppel('punchPiece',[NIP,l.id,x,etat]).then(r=>{if(!r.ok)prMsg(r.err,'err');else{prMsg('');l.coupees=r.coupees;l.punches=r.punches}rendreProd()},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()})},
+  terminer:x=>{const l=prLot(),nom=(document.getElementById('prNom')||{}).value||PR.nom;PR.nom=nom;
+    if(!String(nom).trim()){prMsg('Écrivez le nom de la personne.','err');rendreProd();return}
+    prAppel('terminerBonProd',[NIP,l.id,x,nom]).then(r=>{prMsg(r.ok?'Bon terminé : PDF signé enregistré'+(r.lotFerme?'. Le lot est fermé.':'.'):r.err,r.ok?'ok':'err');chargerProd()},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()})},
+  impBarre:x=>{const l=prLot(),b=l.barres.find(y=>y.no==x);imprimerEt(b.cuts.map(c=>etiquette(l,c,b)))},
+  impLot:()=>{const l=prLot();imprimerEt(l.barres.flatMap(b=>b.cuts.map(c=>etiquette(l,c,b))))},
+  modeSimon:()=>{
+    const c=window.prompt('Code Simon');if(!c)return;
+    prAppel('getProductionSimon',[NIP,c]).then(s=>{if(s&&s.ok){PR.code=c;PR.S=s;PR.vue='simon';try{localStorage.setItem('horaire-simon',c)}catch(e){}PR.sous='bons';prMsg('')}else prMsg((s&&s.err)||'Erreur','err');rendreProd()},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()});
+  },
+  filtre:x=>{PR.filtre=x;rendreProd()},
+  vueF:()=>{lireForm();PR.vue='francois';PR.sous='';PR.plan=null;prMsg('');rendreProd()},
+  vueS:()=>{PR.vue='simon';PR.sous='bons';prMsg('');rendreProd()},
+  nouveau:()=>{PR.form=formVide();PR.sous='nouvelle';prMsg('');rendreProd()},
+  valider:x=>{prAppel('validerBonProd',[NIP,PR.code,x]).then(r=>{prMsg(r.ok?'Bon validé : il peut entrer dans un lot de coupe.':r.err,r.ok?'ok':'err');chargerProd()},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()})},
+  supprimer:x=>{if(!window.confirm('Supprimer ce brouillon?'))return;prAppel('supprimerBonProd',[NIP,PR.code,x]).then(r=>{prMsg(r.ok?'Brouillon supprimé.':r.err,r.ok?'ok':'err');chargerProd()},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()})},
+  modifier:x=>{const b=PR.S.bons.find(y=>y.id===x);PR.form={id:b.id,client:b.client,so:b.so,dateReq:b.dateReq,couleur:b.couleur,notes:b.notes||'',urgent:!!b.urgent,lignes:b.pieces.map(p=>({rep:p.rep,desc:p.desc||'',len:fmtPo(p.len),punch:String(p.punch)}))};PR.sous='nouvelle';prMsg('');rendreProd()},
+  annulerForm:()=>{PR.form=null;PR.sous='bons';rendreProd()},
+  ligneP:()=>{lireForm();PR.form.lignes.push({rep:'',desc:'',len:'',punch:'0'});rendreProd()},
+  ligneX:x=>{lireForm();if(PR.form.lignes.length>1)PR.form.lignes.splice(+x,1);rendreProd()},
+  enreg:()=>{lireForm();const f=PR.form,err=[];
+    const pieces=f.lignes.filter(g=>g.rep||g.len||g.desc).map((g,i)=>{const len=parsePo(g.len);if(!(len>0))err.push('Pièce '+(i+1)+' : longueur illisible.');return {rep:g.rep.trim(),ouv:(g.rep.split('-')[0]||'').trim(),desc:g.desc,len:len,punch:+g.punch}});
+    if(err.length){prMsg(err.join(' '),'err');rendreProd();return}
+    const charge={client:f.client,so:f.so,dateReq:f.dateReq,couleur:f.couleur,notes:f.notes,urgent:!!f.urgent,pieces:pieces};
+    const p=f.id?prAppel('modifierBonProd',[NIP,PR.code,f.id,charge]):prAppel('creerBonProd',[NIP,PR.code,charge]);
+    p.then(r=>{if(r.ok){prMsg(f.id?'Changements enregistrés.':'Brouillon enregistré : il faut maintenant le valider.','ok');PR.form=null;PR.sous='bons';chargerProd()}else{prMsg(r.err,'err');rendreProd()}},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()})},
+  couleur:x=>{PR.couleur=x;PR.exclus={};PR.plan=null;PR.lotId='';PR.sous='';prMsg('');const lc=prLots();if(lc.length)PR.lotId=lc[0].id;rendreProd()},
+  dev:x=>{PR.dev=Math.max(0,Math.min(PR.params.devanceMax||7,PR.dev+(+x)));PR.plan=null;rendreProd()},
+  seul:()=>{PR.seul=!PR.seul;PR.plan=null;rendreProd()},
+  excl:x=>{PR.exclus[x]=!PR.exclus[x];PR.plan=null;rendreProd()},
+  lancer:()=>{const ids=PR.plan.eligibles.filter(e=>e.inclus).map(e=>e.id);
+    if(!ids.length||!PR.plan.autorise)return;
+    prAppel('lancerLot',[NIP,PR.couleur,ids,PR.dev]).then(r=>{if(r.ok){prMsg('Lot lancé : la production peut commencer.','ok');PR.plan=null;PR.exclus={};PR.seul=false;PR.sous='couper';PR.lotId=r.lot.id;chargerProd()}else{prMsg(r.err,'err');PR.plan=null;rendreProd()}},e=>{prMsg('Connexion impossible : '+e,'err');rendreProd()})}
+};
+document.getElementById('vueProd').addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-a]');if(!t||t.disabled)return;
+  const f=PRA[t.dataset.a];if(f)f(t.dataset.x);
+});
+document.getElementById('vueProd').addEventListener('input',ev=>{if(ev.target.id==='prNom')PR.nom=ev.target.value});
+
 charger(nipSauve,true); // sans NIP configuré, l'horaire s'ouvre directement; sinon l'écran NIP apparaît
 </script>
 </body>
