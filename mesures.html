@@ -2391,6 +2391,7 @@ function safeMirror(){
 }
 function lastCopy(cb){ idb().then(function(db){ var st=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE), q=st.getAll(); q.onsuccess=function(){ var a=q.result||[]; a.sort(function(x,y){ return y.t-x.t; }); cb(a[0]||null); }; q.onerror=function(){ cb(null); }; }).catch(function(){ cb(null); }); }
 try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+try{ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js'); }catch(e){}
 var savedAt=null;
 function pendCount(){ try{ return JSON.parse(localStorage.getItem('mesures-envois-attente')||'[]').length; }catch(e){ return 0; } }
 function markSaved(){ savedAt=new Date(); drawInd(); }
@@ -2416,6 +2417,7 @@ function prodOuvertures(){
   doneP().forEach(function(r){ pris(String(r.id),r.cut); });
   return {ouvertures:out,n:n,flag:flag};
 }
+function releveSansPhotos(){ try{ var c=JSON.parse(JSON.stringify(state)); Object.keys(c.openings||{}).forEach(function(k){ if(c.openings[k]) delete c.openings[k].photos; }); return c; }catch(e){ return null; } }
 function envMsg(t,l){ $('env-msg').innerHTML=t?'<li class="'+(l||'info')+'">'+t.replace(/</g,'&lt;')+'</li>':''; }
 $('envProd').addEventListener('click', function(){
   var d=prodOuvertures(), P=state.project;
@@ -2434,7 +2436,7 @@ $('env-go').addEventListener('click', function(){
   if(!d.n){ envMsg('Aucune moulure à envoyer.','err'); return; }
   var nip='',code=''; try{ nip=localStorage.getItem('horaire-nip')||''; code=localStorage.getItem('horaire-simon')||''; }catch(e){}
   if(!code){ code=window.prompt('Code Simon')||''; if(!code) return; }
-  var charge={client:P.client,so:P.soumission||'',couleur:$('env-coul').value,dateReq:date,urgent:$('env-urg').checked,notes:'Outil de mesures · relevé du '+(P.date||''),ouvertures:d.ouvertures};
+  var charge={client:P.client,so:P.soumission||'',couleur:$('env-coul').value,dateReq:date,urgent:$('env-urg').checked,notes:'Outil de mesures · relevé du '+(P.date||''),ouvertures:d.ouvertures,releve:releveSansPhotos()};
   $('env-go').disabled=true; envMsg('Envoi…');
   envoyer(charge,nip,code,function(res){
     $('env-go').disabled=false;
