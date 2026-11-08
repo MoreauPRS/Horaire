@@ -1117,9 +1117,9 @@ function vBons(){
   bons.forEach(b=>{
     const nb=b.pieces.length, np=b.pieces.filter(p=>p.punch).length;
     h+=`<div class="carte" ${b.urgent?'style="border-color:var(--today)"':''}><div class="bh"><div>${b.urgent?'<span class="pastille2" style="background:var(--today);color:#fff;margin-right:6px">Urgent</span>':''}<b style="font-size:18px">${esc(b.client)}</b> <span class="reste">${b.so?'SO-'+esc(b.so)+' · ':''}${esc(b.couleur)} · ${nb} pièce(s)${np?' ('+np+' punch)':''} · requis le ${esc(b.dateReq)} · ${b.source==='mesures'?'outil de mesures':'commande manuelle'}</span></div>
-      <span class="pastille2" style="background:${C[b.statut][0]};color:${C[b.statut][1]}">${F[b.statut]}${b.modifie?' · modifié':''}</span></div>
+      <span class="pastille2" style="background:${C[b.statut][0]};color:${C[b.statut][1]}">${F[b.statut]}${b.statut==='brouillon'&&b.source==='mesures'?' · mesures reçues':''}${b.modifie?' · modifié':''}</span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${b.statut==='brouillon'?`<button class="btn vert" type="button" data-a="valider" data-x="${esc(b.id)}">Valider pour production</button>`:''}
+        ${b.statut==='brouillon'?(b.dossier&&!b.dossier.existe?`<button class="btn vert" type="button" disabled style="opacity:.45;cursor:not-allowed">Valider pour production</button><span class="reste" style="flex-basis:100%;color:#8a2217;font-weight:600">${b.dossier.inconnu?'Dossier de commande : vérification impossible pour le moment.':'En attente du dossier de commande (contrat final et dépôt) : on peut ouvrir et modifier le bon, mais pas le valider.'}</span>`:`<button class="btn vert" type="button" data-a="valider" data-x="${esc(b.id)}">Valider pour production</button>`):''}
         ${b.statut==='brouillon'||b.statut==='validee'?`<button class="btn" type="button" data-a="modifier" data-x="${esc(b.id)}">Modifier</button>`:''}
         ${b.statut==='brouillon'?`<button class="btn" type="button" data-a="supprimer" data-x="${esc(b.id)}">Supprimer</button>`:''}</div></div>`;
   });
