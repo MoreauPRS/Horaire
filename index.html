@@ -1010,12 +1010,18 @@ const prLotVisible=()=>prLots().find(l=>l.id===PR.lotId)||prLots()[0]||null;
 
 function rendreProd(){
   const el=document.getElementById('vueProd');
-  const simon=PR.vue==='simon'&&!!PR.S;
+  const pS=window.PROFIL==='simon', pF=window.PROFIL==='francois';
+  const simon=!pF&&(pS||PR.vue==='simon')&&!!PR.S;
   let h='<div class="pr">';
   if(PR.essai)h+='<div class="bandeau">Mode essai : les données sont dans le dossier « essai » et rien n’est envoyé à Zoho.</div>';
+  if(pS&&!PR.S){
+    if(PR.msg)h+=`<div class="bandeau ${PR.msgType}">${esc(PR.msg)}</div>`;
+    h+='<div class="reste">Cette page sert à valider les bons de moulures et à les lancer en production. Entrez votre code pour l’ouvrir.</div><div class="sous"><button class="btn plein" type="button" data-a="modeSimon">Entrer le code</button></div></div>';
+    el.innerHTML=h;return;
+  }
   if(simon){
     if(['bons','nouvelle'].indexOf(PR.sous)<0)PR.sous='bons';
-    h+=`<div class="sous"><button class="btn" type="button" role="tab" aria-selected="${PR.sous==='bons'}" data-a="sous" data-x="bons">Bons de moulures</button><span style="flex:1"></span><button class="btn plein" type="button" data-a="nouveau">+ Nouvelle commande</button><button class="btn" type="button" data-a="vueF">Vue François</button></div>`;
+    h+=`<div class="sous"><button class="btn" type="button" role="tab" aria-selected="${PR.sous==='bons'}" data-a="sous" data-x="bons">Bons de moulures</button><span style="flex:1"></span><button class="btn plein" type="button" data-a="nouveau">+ Nouvelle commande</button>${pS?'':'<button class="btn" type="button" data-a="vueF">Vue François</button>'}</div>`;
     if(PR.msg)h+=`<div class="bandeau ${PR.msgType}">${esc(PR.msg)}</div>`;
     h+=(PR.sous==='nouvelle'?vNouvelle:vBons)()+'</div>';
     el.innerHTML=h;return;
@@ -1025,7 +1031,7 @@ function rendreProd(){
     const nl=PR.lots.filter(l=>l.couleur===c).length, a=PR.attente[c]||{bons:0};
     const t=[nl?nl+' lot'+(nl>1?'s':''):'',a.bons?a.bons+' bon'+(a.bons>1?'s':'')+' prêt'+(a.bons>1?'s':''):''].filter(Boolean).join(' · ');
     return `<button class="btn ${PR.couleur===c?'sel':''}" type="button" data-a="couleur" data-x="${esc(c)}">${esc(c)}${t?' · '+t:''}</button>`}).join('')
-    +'<span style="flex:1"></span>'+(PR.S?'<button class="btn" type="button" data-a="vueS">Vue Simon</button>':'<button class="btn" type="button" data-a="modeSimon">Mode Simon</button>')+'</div>';
+    +'<span style="flex:1"></span>'+(pF?'':PR.S?'<button class="btn" type="button" data-a="vueS">Vue Simon</button>':'<button class="btn" type="button" data-a="modeSimon">Mode Simon</button>')+'</div>';
   const lots=prLots(), l=prLotVisible();
   if(!PR.sous||(PR.sous!=='preparer'&&!l))PR.sous=l?'couper':'preparer';
   if(lots.length>1)h+='<div class="sous">'+lots.map(o=>`<button class="btn ${o.id===l.id?'sel':''}" type="button" data-a="lot" data-x="${esc(o.id)}">Lot ${esc(o.id)}${o.petit?' · petit lot':''}</button>`).join('')+'</div>';
@@ -1233,6 +1239,31 @@ document.getElementById('vueProd').addEventListener('click',ev=>{
   const f=PRA[t.dataset.a];if(f)f(t.dataset.x);
 });
 document.getElementById('vueProd').addEventListener('input',ev=>{if(ev.target.id==='prNom')PR.nom=ev.target.value});
+
+// ================= Profils : quels onglets chaque tablette voit =================
+// Adresse de la page + ?profil=francois | installateurs | simon   (sans paramètre ou ?profil=tout : tous les onglets, ex. téléphone du patron)
+// Le choix est mémorisé dans la tablette. Ce n'est pas une sécurité : les fonctions de Simon restent protégées par son code.
+const PROFILS={
+  francois:{nom:'François',onglets:['inst','cue','liv','prod','rec']},
+  installateurs:{nom:'Installateurs',onglets:['inst','liv']},
+  simon:{nom:'Simon',onglets:['inst','cue','liv','prod','mes']},
+  tout:{nom:'Tout',onglets:['inst','cue','liv','prod','rec','mes']}
+};
+(function(){
+  let p='';
+  try{const q=new URLSearchParams(location.search).get('profil');if(q){p=q.toLowerCase();localStorage.setItem('horaire-profil',p)}else p=localStorage.getItem('horaire-profil')||''}catch(e){}
+  if(!PROFILS[p])p='tout';
+  const ok=PROFILS[p].onglets.slice();
+  const url=window.MESURES_URL||'';
+  const ids={inst:'tabInst',cue:'tabCue',liv:'tabLiv',rec:'tabRec',prod:'tabProd'};
+  Object.keys(ids).forEach(k=>{const e=document.getElementById(ids[k]);if(e)e.hidden=ok.indexOf(k)<0});
+  if(ok.indexOf('mes')>=0&&url){
+    const a=document.createElement('a');a.className='btn';a.id='tabMes';a.textContent='Mesures';a.href=url;a.target='_blank';a.rel='noopener';a.style.textDecoration='none';
+    document.querySelector('.onglets').appendChild(a);
+  }
+  if(ok.indexOf(vue)<0){vue=ok[0];try{localStorage.setItem('horaire-vue',vue)}catch(e){}}
+  window.PROFIL=p;
+})();
 
 charger(nipSauve,true); // sans NIP configuré, l'horaire s'ouvre directement; sinon l'écran NIP apparaît
 </script>
