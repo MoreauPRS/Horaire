@@ -276,6 +276,7 @@ ol.howto{margin:8px 0 0;padding-left:22px;display:flex;flex-direction:column;gap
       <h1>Relevé de mesures</h1>
       <span class="proj" id="hdrProj"></span>
       <span class="badge" id="hdrBadge" hidden>Exemple</span>
+      <span class="hint num" id="saveInd" aria-live="polite" style="white-space:nowrap"></span>
     </div>
     <nav class="tabs" aria-label="Étapes">
       <button type="button" data-view="projet" id="tab-projet">Projet</button>
@@ -387,6 +388,17 @@ ol.howto{margin:8px 0 0;padding-left:22px;display:flex;flex-direction:column;gap
         <li>Mode mur : ligne laser verticale près de chaque colonne, mesurer la distance ligne → colonne en haut et en bas.</li>
         <li>iPad : si le clavier à l'écran disparaît, tenir la touche +/− du DISTO une seconde.</li>
       </ol>
+    </div>
+    <div class="panel sect">
+      <h2>Copies de sécurité</h2>
+      <p class="hint" style="margin:0">Le relevé est enregistré dans la tablette à chaque mesure, même sans réseau, et recopié dans une deuxième mémoire (les 10 dernières copies). Exporte un fichier avant de vider les données du navigateur ou de changer de tablette.</p>
+      <div class="row">
+        <button type="button" class="btn" id="bkExport">Exporter une copie (fichier)</button>
+        <button type="button" class="btn" id="bkImportBtn">Restaurer un fichier</button>
+        <button type="button" class="btn" id="bkLast">Restaurer la dernière copie de sécurité</button>
+        <input type="file" id="bkFile" accept=".json,application/json" hidden>
+      </div>
+      <div class="msgs" id="bkMsg" aria-live="polite"></div>
     </div>
     <div class="panel sect">
       <h2>Recommencer</h2>
@@ -1367,6 +1379,7 @@ function save(){
     try{ localStorage.setItem(KEY, JSON.stringify(state)); }
     catch(e){ try{ var lite=JSON.parse(JSON.stringify(state)); Object.keys(lite.openings).forEach(function(k){ lite.openings[k].photos=[]; }); localStorage.setItem(KEY, JSON.stringify(lite)); }catch(e2){}
       if(!warnedQuota){ warnedQuota=true; toast('Mémoire pleine : les photos ne seront pas gardées après fermeture'); } }
+    safeMirror(); markSaved();
   },250);
 }
 function R(){ if(cacheVer!==ver){ cache=computeAll(state); cacheVer=ver; } return cache; }
@@ -2366,6 +2379,35 @@ document.addEventListener('visibilitychange', function(){ if(document.visibility
 var tt=null;
 function toast(msg){ var t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(function(){ t.classList.remove('show'); },2800); }
 
+/* ===== Sécurité des données : deuxième mémoire (IndexedDB), indicateur, copies, envoi en attente ===== */
+var IDB_NAME='releve-secours', IDB_STORE='copies';
+function idb(){ return new Promise(function(ok,ko){ try{ var q=indexedDB.open(IDB_NAME,1); q.onupgradeneeded=function(){ q.result.createObjectStore(IDB_STORE,{keyPath:'t'}); }; q.onsuccess=function(){ ok(q.result); }; q.onerror=function(){ ko(q.error); }; }catch(e){ ko(e); } }); }
+function safeMirror(){
+  idb().then(function(db){
+    var tx=db.transaction(IDB_STORE,'readwrite'), st=tx.objectStore(IDB_STORE);
+    st.put({t:Date.now(), client:state.project.client||'', json:JSON.stringify(state)});
+    var all=st.getAllKeys(); all.onsuccess=function(){ var ks=all.result.sort(function(a,b){ return a-b; }); while(ks.length>10) st.delete(ks.shift()); };
+  }).catch(function(){});
+}
+function lastCopy(cb){ idb().then(function(db){ var st=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE), q=st.getAll(); q.onsuccess=function(){ var a=q.result||[]; a.sort(function(x,y){ return y.t-x.t; }); cb(a[0]||null); }; q.onerror=function(){ cb(null); }; }).catch(function(){ cb(null); }); }
+try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+var savedAt=null;
+function pendCount(){ try{ return JSON.parse(localStorage.getItem('mesures-envois-attente')||'[]').length; }catch(e){ return 0; } }
+function markSaved(){ savedAt=new Date(); drawInd(); }
+function drawInd(){ var e=$('saveInd'); if(!e) return; var p=pendCount(), h=savedAt?savedAt.toTimeString().slice(0,5):'';
+  e.textContent=(h?'Enregistré '+h:'')+(navigator.onLine===false?' · hors connexion':'')+(p?' · '+p+' envoi'+(p>1?'s':'')+' en attente':''); e.style.color=p?'var(--warn)':''; }
+window.addEventListener('online',function(){ drawInd(); flushEnvois(); }); window.addEventListener('offline',drawInd);
+function bkMsg(t,l){ $('bkMsg').innerHTML=t?'<li class="'+(l||'info')+'">'+t.replace(/</g,'&lt;')+'</li>':''; }
+function restoreState(json){ var s=JSON.parse(json); if(!(s&&s.project&&s.openings&&s.project.faces)) throw new Error('Fichier non reconnu'); try{ localStorage.setItem(KEY,json); }catch(e){} location.reload(); }
+$('bkExport').addEventListener('click',function(){
+  var b=new Blob([JSON.stringify(state)],{type:'application/json'}), a=document.createElement('a'), nm=(state.project.soumission||state.project.client||'releve').replace(/[^\w.-]+/g,'_');
+  a.href=URL.createObjectURL(b); a.download='releve-'+nm+'-'+new Date().toISOString().slice(0,10)+'.json'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500); bkMsg('Copie exportée.','ok'); });
+$('bkImportBtn').addEventListener('click',function(){ $('bkFile').click(); });
+$('bkFile').addEventListener('change',function(){ var f=this.files[0]; if(!f) return; if(!window.confirm('Remplacer le relevé actuel par ce fichier ?')) return; var r=new FileReader(); r.onload=function(){ try{ restoreState(String(r.result)); }catch(e){ bkMsg('Impossible : '+e.message,'err'); } }; r.readAsText(f); });
+$('bkLast').addEventListener('click',function(){ lastCopy(function(c){ if(!c){ bkMsg('Aucune copie de sécurité trouvée.','warn'); return; } if(window.confirm('Restaurer la copie du '+new Date(c.t).toLocaleString('fr-CA')+(c.client?' ('+c.client+')':'')+' ?')) try{ restoreState(c.json); }catch(e){ bkMsg('Impossible : '+e.message,'err'); } }); });
+/* au démarrage : mémoire principale vide mais copie de secours présente (données du navigateur effacées) -> proposer de restaurer */
+(function(){ var vide=false; try{ vide=!localStorage.getItem(KEY); }catch(e){} if(vide) lastCopy(function(c){ if(c && window.confirm('Une copie de sécurité du '+new Date(c.t).toLocaleString('fr-CA')+(c.client?' ('+c.client+')':'')+' a été retrouvée. La restaurer ?')) try{ restoreState(c.json); }catch(e){} }); })();
+
 /* ===== Envoi des moulures vers la production (liste de Simon) ===== */
 function prodOuvertures(){
   var RR=R(), out=[], n=0, flag=0;
@@ -2394,15 +2436,34 @@ $('env-go').addEventListener('click', function(){
   if(!code){ code=window.prompt('Code Simon')||''; if(!code) return; }
   var charge={client:P.client,so:P.soumission||'',couleur:$('env-coul').value,dateReq:date,urgent:$('env-urg').checked,notes:'Outil de mesures · relevé du '+(P.date||''),ouvertures:d.ouvertures};
   $('env-go').disabled=true; envMsg('Envoi…');
+  envoyer(charge,nip,code,function(res){
+    $('env-go').disabled=false;
+    if(res.ok){ envMsg('Envoyé : '+d.n+' pièces, bon en brouillon dans la liste de Simon (page Production).','ok'); toast('Moulures envoyées en production'); }
+    else if(res.queued){ envMsg('Pas de réseau : l\u2019envoi est gardé dans la tablette ('+d.n+' pièces) et partira tout seul au retour de la connexion. Ne vide pas les données du navigateur d\u2019ici là.','warn'); }
+    else envMsg(res.err||'Erreur','err');
+    drawInd();
+  });
+});
+function envoyer(charge,nip,code,done){
   fetch(window.API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:'recevoirListeDebit',args:[nip,code,charge]}),redirect:'follow'})
     .then(function(r){ return r.json(); })
     .then(function(r){
-      $('env-go').disabled=false;
-      if(r&&r.ok){ try{ localStorage.setItem('horaire-simon',code); }catch(e){} envMsg('Envoyé : '+d.n+' pièces, bon en brouillon dans la liste de Simon (page Production).','ok'); toast('Moulures envoyées en production'); }
-      else { if(r&&/Code Simon/.test(r.err||'')){ try{ localStorage.removeItem('horaire-simon'); }catch(e){} } envMsg((r&&r.err)||'Erreur','err'); }
+      if(r&&r.ok){ try{ localStorage.setItem('horaire-simon',code); }catch(e){} done({ok:true}); }
+      else { if(r&&/Code Simon/.test(r.err||'')){ try{ localStorage.removeItem('horaire-simon'); }catch(e){} } done({ok:false,err:(r&&r.err)||'Erreur'}); }
     })
-    .catch(function(e){ $('env-go').disabled=false; envMsg('Connexion impossible : '+e,'err'); });
-});
+    .catch(function(){ try{ localStorage.setItem('horaire-simon',code); var q=JSON.parse(localStorage.getItem('mesures-envois-attente')||'[]'); q.push({t:Date.now(),charge:charge}); localStorage.setItem('mesures-envois-attente',JSON.stringify(q)); done({ok:false,queued:true}); }catch(e){ done({ok:false,err:'Connexion impossible et mémoire pleine : exporte une copie (Réglages).'}); } });
+}
+var flushing=false;
+function flushEnvois(){
+  if(flushing||!window.API_URL) return; var q=[]; try{ q=JSON.parse(localStorage.getItem('mesures-envois-attente')||'[]'); }catch(e){} if(!q.length) return;
+  var nip='',code=''; try{ nip=localStorage.getItem('horaire-nip')||''; code=localStorage.getItem('horaire-simon')||''; }catch(e){} if(!code) return;
+  flushing=true; var it=q[0];
+  fetch(window.API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:'recevoirListeDebit',args:[nip,code,it.charge]}),redirect:'follow'})
+    .then(function(r){ return r.json(); })
+    .then(function(r){ flushing=false; if(r&&r.ok){ q.shift(); localStorage.setItem('mesures-envois-attente',JSON.stringify(q)); toast('Envoi en attente transmis : '+(it.charge.client||'')); drawInd(); flushEnvois(); } else { drawInd(); } })
+    .catch(function(){ flushing=false; });
+}
+setInterval(flushEnvois,60000); setTimeout(flushEnvois,3000); setTimeout(drawInd,500);
 
 renderHeader();
 setView(state.view||'mesure');
