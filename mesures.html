@@ -341,8 +341,21 @@ ol.howto{margin:8px 0 0;padding-left:22px;display:flex;flex-direction:column;gap
       <button type="button" class="btn primary" id="copyBon">Copier le bon Sunspace</button>
       <button type="button" class="btn" id="copyCut">Copier la liste de débit</button>
       <button type="button" class="btn" id="copyCsv">Copier pour Excel</button>
+      <button type="button" class="btn primary" id="envProd">Envoyer les moulures en production</button>
       <button type="button" class="btn" disabled title="Disponible dans la version installée">Imprimer / PDF</button>
       <button type="button" class="btn" disabled title="Disponible dans la version installée">Envoyer dans Zoho</button>
+    </div>
+    <div class="panel sect" id="envPanel" hidden style="margin-top:14px">
+      <h2>Envoyer les moulures en production</h2>
+      <p class="hint" style="margin:0" id="envResume"></p>
+      <div class="form">
+        <label>Date requise (au plus tard)<input class="txt" id="env-date" type="date"></label>
+        <label>Couleur de la moulure<select id="env-coul"><option>Blanc</option><option>Noir</option><option>Bronze</option><option>Driftwood</option><option>Gris</option></select></label>
+        <label class="full" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="env-urg" style="width:24px;height:24px"> Urgent : à couper tout de suite</label>
+      </div>
+      <p class="hint" style="margin:0">Le bon arrive en brouillon dans la liste de Simon (page Production). Simon le valide pour le lancer. Seule la moulure U est envoyée.</p>
+      <div class="row"><button type="button" class="btn primary big" id="env-go">Envoyer</button><button type="button" class="btn ghost" id="env-cancel">Annuler</button></div>
+      <div class="msgs" id="env-msg" aria-live="polite"></div>
     </div>
     <textarea class="copybox" id="copyFallback" hidden readonly aria-label="Texte à copier"></textarea>
     <p class="note">Limites Sunspace du catalogue 2026-Apr. Les pièces marquées « à valider » suivent une déduction que tu n'as pas encore confirmée (ouvertures à plusieurs produits, portes, boxes horizontaux). L'impression, le PDF et l'envoi dans Zoho viendront dans la version installée.</p>
@@ -387,6 +400,7 @@ ol.howto{margin:8px 0 0;padding-left:22px;display:flex;flex-direction:column;gap
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js" onerror="void 0"></script>
 <script>
 (function(){
 'use strict';
@@ -2351,6 +2365,44 @@ function requestWake(){ try{ if(navigator.wakeLock&&!wake){ navigator.wakeLock.r
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible'&&state.view==='mesure') requestWake(); });
 var tt=null;
 function toast(msg){ var t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(function(){ t.classList.remove('show'); },2800); }
+
+/* ===== Envoi des moulures vers la production (liste de Simon) ===== */
+function prodOuvertures(){
+  var RR=R(), out=[], n=0, flag=0;
+  var pris=function(id,cut){ var ps=[]; (cut||[]).forEach(function(c){ if(c.prof!=='Moulure U') return; ps.push({prof:c.prof,no:ps.length+1,desc:c.desc,len:c.len,qty:c.qty,punch:c.punch}); n+=c.qty; if(c.flag) flag+=c.qty; }); if(ps.length) out.push({ouv:id,pieces:ps}); };
+  allIds(state).forEach(function(id){ var r=RR[id]; if(!r||!r.geo.complete||r.mode==='murs') return; pris(id,r.cut); });
+  doneP().forEach(function(r){ pris(String(r.id),r.cut); });
+  return {ouvertures:out,n:n,flag:flag};
+}
+function envMsg(t,l){ $('env-msg').innerHTML=t?'<li class="'+(l||'info')+'">'+t.replace(/</g,'&lt;')+'</li>':''; }
+$('envProd').addEventListener('click', function(){
+  var d=prodOuvertures(), P=state.project;
+  $('envPanel').hidden=false; envMsg('');
+  var c=(FRAME[P.frame]||FRAME.Black).fr; $('env-coul').value=c;
+  $('envResume').textContent=d.n?('Client : '+(P.client||'—')+' · No projet : '+(P.soumission||'—')+' · '+d.n+' pièces de moulure U dans '+d.ouvertures.length+' ouverture(s)'+(d.flag?' · dont '+d.flag+' « à valider »':'')+'.'):'Aucune moulure U à envoyer : mesure d\u2019abord au moins une ouverture en mode fenêtres.';
+  $('env-go').disabled=!d.n;
+  $('envPanel').scrollIntoView({behavior:'smooth',block:'center'});
+});
+$('env-cancel').addEventListener('click', function(){ $('envPanel').hidden=true; });
+$('env-go').addEventListener('click', function(){
+  var P=state.project, d=prodOuvertures(), date=$('env-date').value;
+  if(!window.API_URL){ envMsg('Adresse du service absente (config.js). Ouvre cet outil depuis la même adresse que la page de la tablette.','err'); return; }
+  if(!P.client){ envMsg('Entre le client dans l\u2019onglet Projet.','err'); return; }
+  if(!date){ envMsg('Choisis la date requise.','err'); return; }
+  if(!d.n){ envMsg('Aucune moulure à envoyer.','err'); return; }
+  var nip='',code=''; try{ nip=localStorage.getItem('horaire-nip')||''; code=localStorage.getItem('horaire-simon')||''; }catch(e){}
+  if(!code){ code=window.prompt('Code Simon')||''; if(!code) return; }
+  var charge={client:P.client,so:P.soumission||'',couleur:$('env-coul').value,dateReq:date,urgent:$('env-urg').checked,notes:'Outil de mesures · relevé du '+(P.date||''),ouvertures:d.ouvertures};
+  $('env-go').disabled=true; envMsg('Envoi…');
+  fetch(window.API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:'recevoirListeDebit',args:[nip,code,charge]}),redirect:'follow'})
+    .then(function(r){ return r.json(); })
+    .then(function(r){
+      $('env-go').disabled=false;
+      if(r&&r.ok){ try{ localStorage.setItem('horaire-simon',code); }catch(e){} envMsg('Envoyé : '+d.n+' pièces, bon en brouillon dans la liste de Simon (page Production).','ok'); toast('Moulures envoyées en production'); }
+      else { if(r&&/Code Simon/.test(r.err||'')){ try{ localStorage.removeItem('horaire-simon'); }catch(e){} } envMsg((r&&r.err)||'Erreur','err'); }
+    })
+    .catch(function(e){ $('env-go').disabled=false; envMsg('Connexion impossible : '+e,'err'); });
+});
 
 renderHeader();
 setView(state.view||'mesure');
