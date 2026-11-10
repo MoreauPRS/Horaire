@@ -1280,10 +1280,38 @@ const PROFILS={
 (function(){
   const uniteDe=d=>{d=String(d||'').toLowerCase();
     if(/\b(pk|pks|pack|pock|package|header|bottom track|i-beam|paquet|bundle|patio door)\b/.test(d))return 'paquet';
-    if(/accessor|boîte|boite|box\b/.test(d))return 'boîte';
+    if(/accessor|boîte|boite|box\b|attache|capuchon|bouchon/.test(d))return 'boîte';
     if(/morceau|planche|fascia|contremarche/.test(d))return 'morceau';
     return 'unité'};
   const UN=['unité','paquet','boîte','morceau','palette'];
+  const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  let pdfLib=null;const CACHE={};
+  const base_=()=>window.PDFJS_BASE||PDFJS;
+  function chargerPdfJs(){
+    if(pdfLib)return pdfLib;
+    pdfLib=new Promise((ok,ko)=>{const sc=document.createElement('script');sc.src=base_()+'pdf.min.js';
+      sc.onload=async()=>{try{const w=await (await fetch(base_()+'pdf.worker.min.js')).blob();pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(w);ok(pdfjsLib)}catch(e){ko(e)}};
+      sc.onerror=()=>ko('pdf.js indisponible');document.head.appendChild(sc)});
+    pdfLib.catch(()=>{pdfLib=null});return pdfLib}
+  function octetsBon(r){return new Promise((ok,ko)=>{
+    if(CACHE[r.id])return ok(CACHE[r.id]);
+    appelerGs('getBonPdf',[NIP,r.id],x=>{if(!x||!x.ok)return ko((x&&x.err)||'PDF indisponible');
+      const bin=atob(x.b64),u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);CACHE[r.id]=u;ok(u)},e=>ko(e))})}
+  async function pdfDe(r){const lib=await chargerPdfJs();const u=await octetsBon(r);return lib.getDocument({data:u.slice()}).promise}
+  async function decouper(doc,z){
+    const pg=await doc.getPage(z.p),vp=pg.getViewport({scale:2.5}),cv=document.createElement('canvas');
+    cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);
+    await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+    const m=0.006,x=Math.max(0,(z.x-m)*cv.width),y=Math.max(0,(z.y-m)*cv.height),w=Math.min(cv.width-x,(z.w+2*m)*cv.width),h=Math.min(cv.height-y,(z.h+2*m)*cv.height);
+    const o=document.createElement('canvas');o.width=Math.max(1,Math.round(w));o.height=Math.max(1,Math.round(h));
+    o.getContext('2d').drawImage(cv,x,y,w,h,0,0,o.width,o.height);return o}
+  async function voirBon(r,page){
+    let d=document.getElementById('voirBon');if(!d){d=document.createElement('dialog');d.id='voirBon';d.style.cssText='width:min(96vw,1000px);max-height:94vh;padding:0;border:0;border-radius:12px';document.body.appendChild(d)}
+    d.innerHTML='<div style="position:sticky;top:0;background:#1f3a5a;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center"><b>Bon '+esc(r.so?'SO-'+r.so:(r.poLabel||''))+'</b><button type="button" class="btn" id="vbFerme">Fermer ×</button></div><div id="vbPages" style="padding:8px;overflow:auto;max-height:84vh"><div class="charge">Chargement du bon…</div></div>';
+    d.showModal();d.querySelector('#vbFerme').onclick=()=>d.close();
+    try{const doc=await pdfDe(r),box=d.querySelector('#vbPages');box.innerHTML='';
+      for(let p=1;p<=doc.numPages;p++){const pg=await doc.getPage(p),vp=pg.getViewport({scale:1.6}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;cv.style.cssText='width:100%;height:auto;display:block;margin-bottom:8px';cv.id='vbp'+p;box.appendChild(cv);await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;if(page&&p===page)cv.scrollIntoView()}
+    }catch(e){d.querySelector('#vbPages').innerHTML='<div class="alerte">Le bon ne peut pas s’afficher : '+esc(String(e))+'</div>'}}
   const base=ouvrirRec;
   ouvrirRec=function(i){
     base(i);
@@ -1309,12 +1337,33 @@ const PROFILS={
         td.querySelector('.rplus').onclick=()=>{recu[ci]=recu[ci]+1;aff()};
         ck.addEventListener('change',()=>{recu[ci]=ck.checked?(q||1):0;td.querySelector('.rq').textContent=recu[ci];maj()});
       });
+      // 1b. colonne « Expédié » : image de l'écriture manuscrite recadrée sur le scan (jamais retapée) + « Voir le bon »
+      if(r.pdf){
+        const thE=document.createElement('th');thE.textContent='Expédié';th.insertBefore(thE,thR);
+        cks.forEach(ck=>{const ci=+ck.dataset.c,co=r.colis[ci],tr=ck.closest('tr');
+          const td=document.createElement('td');td.className='exp';td.style.minWidth='90px';
+          td.innerHTML=co.zone?'<span style="color:var(--muted);font-size:12px">…</span>':(co.expedie?'<small style="color:var(--muted)">lu : '+esc(co.expedie)+'</small>':'');
+          tr.insertBefore(td,tr.children[3]); // entre Qté et Reçu
+        });
+        const bv=document.createElement('button');bv.type='button';bv.className='btn';bv.textContent='Voir le bon';bv.style.margin='8px 0';
+        const z0=dlg.querySelector('.zone');if(z0){const h=z0.querySelector('.aide');(h||z0).insertAdjacentElement('afterend',bv)}
+        bv.onclick=()=>voirBon(r);
+        pdfDe(r).then(doc=>{
+          cks.forEach(ck=>{const co=r.colis[+ck.dataset.c];if(!co.zone)return;
+            const cell=ck.closest('tr').querySelector('td.exp');
+            decouper(doc,co.zone).then(cv=>{cell.innerHTML='';cv.style.cssText='max-width:130px;height:auto;background:#fff;border-radius:6px;border:1px solid var(--line,#999)';cell.appendChild(cv);cv.onclick=()=>voirBon(r,co.zone.p)})
+              .catch(()=>{cell.innerHTML='<small style="color:var(--muted)">voir le bon</small>'})});
+          if(r.zoneTotal){const t=document.getElementById('recTot');if(t){const sp=document.createElement('div');sp.id='recTotMain';sp.style.marginTop='6px';t.insertAdjacentElement('afterend',sp);
+            sp.innerHTML='<small style="color:var(--muted)">Total expédié écrit à la main : </small>';decouper(doc,r.zoneTotal).then(cv=>{cv.style.cssText='height:42px;width:auto;background:#fff;border-radius:6px;border:1px solid var(--line,#999);vertical-align:middle';sp.appendChild(cv)}).catch(()=>{})}}
+        }).catch(()=>{});
+      }
       // 2. totaux
       const totQ=r.colis.reduce((n,c)=>n+(+c.qte||0),0);
       const maj=()=>{const t=document.getElementById('recTot');if(!t)return;
         const tr_=Object.keys(recu).reduce((n,k)=>n+recu[k],0);
         t.innerHTML='<b>Total commandé : '+totQ+' · Total reçu : '+tr_+'</b> ('+cks.filter(c=>c.checked).length+' ligne(s) cochée(s) sur '+cks.length+')'};
       maj();
+      if(r.controle){const t=document.getElementById('recTot');const ct=document.createElement('div');ct.className='aide';ct.style.marginTop='4px';ct.textContent='Contrôle imprimé sur le bon : '+r.controle;t.insertAdjacentElement('afterend',ct)}
       // 3. case « J'ai relu le bon » : bloque Enregistrer
       const btns=['recOk','recSd'].map(id=>document.getElementById(id)).filter(Boolean);
       if(btns.length){
