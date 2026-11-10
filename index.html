@@ -342,7 +342,8 @@ function placer(liste){
     while(reste>0&&garde<600&&j<=FIN_HORIZON){
       garde++;
       const st=actif(e,j), libre=large(j);
-      const okJour=libre?(st==='on'||st==='res'):(st==='on'&&(e!=='A'||(vendredi?dow(j)===5:dow(j)!==5)));
+      const veille=add(j,-1), suite=st==='res'&&(j===auj()||s.some(k=>k.slice(0,10)===veille));
+      const okJour=(libre||suite)?(st==='on'||st==='res'):(st==='on'&&(e!=='A'||(vendredi?dow(j)===5:dow(j)!==5)));
       if(okJour){for(const h of ['am','pm']){if(reste>0&&!occ[e+j+h]&&!s.includes(j+h)){s.push(j+h);reste--}}}
       j=add(j,1);
     }
