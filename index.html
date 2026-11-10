@@ -1276,6 +1276,67 @@ const PROFILS={
   window.PROFIL=p;
 })();
 
+/* ---- Réception v2 (maquettes du 7 nov) : Reçu − / +, unité, total, « J'ai relu le bon ». Se greffe sur ouvrirRec. ---- */
+(function(){
+  const uniteDe=d=>{d=String(d||'').toLowerCase();
+    if(/\b(pk|pks|pack|pock|package|header|bottom track|i-beam|paquet|bundle|patio door)\b/.test(d))return 'paquet';
+    if(/accessor|boîte|boite|box\b/.test(d))return 'boîte';
+    if(/morceau|planche|fascia|contremarche/.test(d))return 'morceau';
+    return 'unité'};
+  const UN=['unité','paquet','boîte','morceau','palette'];
+  const base=ouvrirRec;
+  ouvrirRec=function(i){
+    base(i);
+    try{
+      const r=RECS[i],dlg=document.getElementById('rec');if(!r||!dlg)return;
+      const tb=dlg.querySelector('table.tb');if(!tb||!dlg.querySelector('.rck'))return;
+      const cks=[...dlg.querySelectorAll('.rck')];
+      // 1. colonne « Reçu » : − qté + unité
+      const rangs=[...tb.querySelectorAll('tr')];
+      const th=rangs[0];const thR=document.createElement('th');thR.textContent='Reçu';
+      const thEmpl=[...th.children].find(x=>x.textContent==='📍');th.insertBefore(thR,thEmpl||null);
+      const recu={};
+      cks.forEach(ck=>{
+        const ci=+ck.dataset.c,co=r.colis[ci],tr=ck.closest('tr');
+        const q=(co.qte==null||isNaN(+co.qte))?0:+co.qte;recu[ci]=0;
+        // composants / contenu sous la description
+        const tdD=tr.children[1];if(co.contenu&&!tdD.querySelector('.cmp')){const s=document.createElement('div');s.className='cmp';s.style.cssText='font-size:12px;color:var(--muted)';s.textContent=co.contenu;tdD.appendChild(s)}
+        const td=document.createElement('td');td.style.whiteSpace='nowrap';
+        td.innerHTML=`<button type="button" class="btn rmoins" aria-label="Moins" style="min-width:44px">−</button> <b class="rq" style="display:inline-block;min-width:28px;text-align:center">0</b> <button type="button" class="btn rplus" aria-label="Plus" style="min-width:44px">+</button> <select class="run" aria-label="Unité" style="font:inherit;padding:6px">${UN.map(u=>`<option ${u===uniteDe(co.desc)?'selected':''}>${u}</option>`).join('')}</select>`;
+        const emplTd=tr.children[3];tr.insertBefore(td,emplTd);
+        const aff=()=>{td.querySelector('.rq').textContent=recu[ci];ck.checked=recu[ci]>0;maj()};
+        td.querySelector('.rmoins').onclick=()=>{recu[ci]=Math.max(0,recu[ci]-1);aff()};
+        td.querySelector('.rplus').onclick=()=>{recu[ci]=recu[ci]+1;aff()};
+        ck.addEventListener('change',()=>{recu[ci]=ck.checked?(q||1):0;td.querySelector('.rq').textContent=recu[ci];maj()});
+      });
+      // 2. totaux
+      const totQ=r.colis.reduce((n,c)=>n+(+c.qte||0),0);
+      const maj=()=>{const t=document.getElementById('recTot');if(!t)return;
+        const tr_=Object.keys(recu).reduce((n,k)=>n+recu[k],0);
+        t.innerHTML='<b>Total commandé : '+totQ+' · Total reçu : '+tr_+'</b> ('+cks.filter(c=>c.checked).length+' ligne(s) cochée(s) sur '+cks.length+')'};
+      maj();
+      // 3. case « J'ai relu le bon » : bloque Enregistrer
+      const btns=['recOk','recSd'].map(id=>document.getElementById(id)).filter(Boolean);
+      if(btns.length){
+        const z=btns[0].closest('.zone');
+        const lab=document.createElement('label');lab.style.cssText='display:flex;gap:10px;align-items:center;font-weight:600;margin-bottom:10px';
+        lab.innerHTML='<input type="checkbox" id="recRelu" style="width:28px;height:28px"> J’ai relu le bon : le total concorde';
+        z.insertBefore(lab,z.firstChild);
+        const sync=()=>btns.forEach(b=>{b.disabled=!document.getElementById('recRelu').checked;b.style.opacity=b.disabled?.45:1});
+        lab.querySelector('input').onchange=sync;sync();
+      }
+      // 4. quantité partielle : avant l'envoi, la ligne porte la quantité reçue
+      btns.forEach(b=>b.addEventListener('click',()=>{
+        cks.forEach(ck=>{const ci=+ck.dataset.c,co=r.colis[ci],q=(co.qte==null||isNaN(+co.qte))?null:+co.qte;
+          if(co._orig==null)co._orig={qte:co.qte,desc:co.desc};
+          co.qte=co._orig.qte;co.desc=co._orig.desc;
+          if(ck.checked&&q!=null&&recu[ci]>0&&recu[ci]<q){co.desc=co._orig.desc+' (reçu '+recu[ci]+' sur '+q+')';co.qte=recu[ci]}
+          else if(ck.checked&&q!=null&&recu[ci]>q){co.desc=co._orig.desc+' (reçu '+recu[ci]+' pour '+q+' commandé)';co.qte=recu[ci]}
+        })},true));
+    }catch(e){console.log('Réception v2 : '+e)}
+  };
+})();
+
 charger(nipSauve,true); // sans NIP configuré, l'horaire s'ouvre directement; sinon l'écran NIP apparaît
 </script>
 </body>
