@@ -303,8 +303,8 @@ if(window.API_URL&&!(window.google&&google.script&&google.script.run)){
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 <script>
-const FERIES=new Set(["2026-10-12","2026-12-23","2026-12-24","2026-12-25","2026-12-28","2026-12-29","2026-12-30","2026-12-31","2027-01-01","2027-05-24","2027-06-24"]);
-const FIN_HORIZON='2027-06-30';
+let FERIES=new Set(["2026-10-12","2026-12-23","2026-12-24","2026-12-25","2026-12-28","2026-12-29","2026-12-30","2026-12-31","2027-01-01","2027-05-24","2027-06-24"]);
+let FIN_HORIZON='2027-06-30';
 const ALT=new Set(['02625','02540','02699']); // sur D pour l'instant, autre équipe possible
 const JR=['lun','mar','mer','jeu','ven'], MO=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const iso=d=>d.toISOString().slice(0,10);
@@ -316,14 +316,54 @@ const auj=()=>{const n=new Date();return new Date(n.getTime()-n.getTimezoneOffse
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ouvrable=j=>{const w=dow(j);return w>0&&w<6&&!FERIES.has(j)};
 // réserves : un vendredi sur deux (A et C à partir du 30 oct., D à partir du 6 nov.)
+// ===== V6 : équipes et congés lus dans les modules CRM « Équipes » et « Congés » (envoyés par horaire_equipes).
+// Si Zoho n'envoie rien (ancienne fonction, module vide), les valeurs codées d'avant servent de copie de secours. =====
+const EQ_DEF=['A','B','C','D'];
+let EQ=EQ_DEF.slice(), CFG=null, CONGES_EQ={};
+function appliquerConfig(d){
+  try{
+    if(!d||!Array.isArray(d.equipes)||!d.equipes.length) return;
+    const cfg={}, liste=[];
+    d.equipes.forEach(q=>{ if(q&&q.l&&(q.actif||q.fin)){cfg[q.l]=q;liste.push(q.l)} });
+    if(!liste.length) return;
+    liste.sort(); EQ=liste; CFG=cfg;
+    const st=document.documentElement.style;
+    liste.forEach(l=>{const c=cfg[l].coul; if(/^#[0-9a-f]{6}$/i.test(c||'')){st.setProperty('--'+l,c); st.setProperty('--'+l+'bg','color-mix(in srgb, '+c+' 14%, var(--panel))')}});
+    if(Array.isArray(d.conges)&&d.conges.length){
+      const gl=new Set(); CONGES_EQ={}; let maxc='';
+      d.conges.forEach(c=>{
+        if(!c||!c.deb) return;
+        const fin=c.fin||c.deb; let j=c.deb, g=0;
+        if(fin>maxc) maxc=fin;
+        while(j<=fin&&g<800){ const w=dow(j); if(w>0&&w<6){ if(c.eq){(CONGES_EQ[c.eq]=CONGES_EQ[c.eq]||new Set()).add(j)} else gl.add(j) } j=add(j,1); g++ }
+      });
+      FERIES=gl;
+      if(maxc>FIN_HORIZON) FIN_HORIZON=maxc;
+    }
+    if(filtre!=='tous'&&EQ.indexOf(filtre)<0) filtre='tous';
+  }catch(e){ EQ=EQ_DEF.slice(); CFG=null; }
+}
+// réserves : un vendredi sur deux, à partir de la date de départ inscrite à la fiche de l'équipe
 function estReserve(e,j){
   if(dow(j)!==5) return false;
-  const ref=(e==='A'||e==='C')?'2026-10-30':e==='D'?'2026-11-06':null;
+  let ref=null;
+  if(CFG){const q=CFG[e]; if(q&&q.res&&q.dep) ref=q.dep;}
+  else ref=(e==='A'||e==='C')?'2026-10-30':e==='D'?'2026-11-06':null;
   if(!ref||j<ref) return false;
   return Math.round((dd(j)-dd(ref))/864e5)%14===0;
 }
+// équipe lundi-jeudi avec vendredis de réserve (comme A) : les jobs normales sautent les vendredis, seule une petite job du vendredi y va
+function sautVendredi(e){const q=CFG&&CFG[e];return q?(!q.ven5&&!!q.res):e==='A'}
 function actif(e,j){
   if(!ouvrable(j)) return 'off';
+  if(CFG){
+    const q=CFG[e]; if(!q) return 'off';
+    if((q.deb&&j<q.deb)||(q.fin&&j>q.fin)) return 'off';
+    if(CONGES_EQ[e]&&CONGES_EQ[e].has(j)) return 'off';
+    if(estReserve(e,j)) return 'res';
+    if(dow(j)===5&&!q.ven5&&!q.res) return 'off';
+    return 'on';
+  }
   if(e==='B'&&(dow(j)===5||j>'2026-10-29')) return 'off';
   if((e==='C'||e==='D')&&j<'2026-10-19') return 'off';
   if(estReserve(e,j)) return 'res';
@@ -339,13 +379,13 @@ function placer(liste){
   liste.forEach(x=>{if(x.fint&&x.deb&&x.fint<x.deb)x.deb=x.fint;});
   const tri=[...liste].sort((a,b)=>a.deb<b.deb?-1:a.deb>b.deb?1:(a.finp&&b.finp&&a.finp!==b.finp?(a.finp<b.finp?-1:1):(b.demi-a.demi)));
   const essai=(x,large)=>{
-    const e=x.eq, vendredi=e==='A'&&dow(x.deb)===5, s=[];
+    const e=x.eq, vendredi=sautVendredi(e)&&dow(x.deb)===5, s=[];
     let j=x.deb, reste=Math.max(1,x.demi||2), garde=0;
     while(reste>0&&garde<600&&j<=FIN_HORIZON){
       garde++;
       const st=actif(e,j), libre=large(j);
       const veille=add(j,-1), suite=st==='res'&&(j===auj()||s.some(k=>k.slice(0,10)===veille));
-      const okJour=(libre||suite)?(st==='on'||st==='res'):(st==='on'&&(e!=='A'||(vendredi?dow(j)===5:dow(j)!==5)));
+      const okJour=(libre||suite)?(st==='on'||st==='res'):(st==='on'&&(!sautVendredi(e)||(vendredi?dow(j)===5:dow(j)!==5)));
       if(okJour){for(const h of ['am','pm']){if(reste>0&&!occ[e+j+h]&&!s.includes(j+h)){s.push(j+h);reste--}}}
       j=add(j,1);
     }
@@ -371,7 +411,7 @@ let DATA=null, filtre='tous', NIP='';
 try{filtre=localStorage.getItem('horaire-eq')||'tous'}catch(e){}
 function boutons(){
   const el=document.getElementById('filtres');el.innerHTML='';
-  [['tous','Toutes'],['A','A'],['B','B'],['C','C'],['D','D']].forEach(([k,t])=>{
+  [['tous','Toutes']].concat(EQ.map(l=>[l,l])).forEach(([k,t])=>{
     const b=document.createElement('button');b.type='button';b.className='btn';b.setAttribute('aria-pressed',filtre===k);
     b.innerHTML=(k==='tous'?t:`<span class="pt" style="background:var(--${k})"></span>Équipe ${t}`);
     b.onclick=()=>{filtre=k;try{localStorage.setItem('horaire-eq',k)}catch(e){};boutons();rendre()};el.appendChild(b);
@@ -381,7 +421,7 @@ function rendre(){
   const box=document.getElementById('semaines');box.innerHTML='';
   const today=auj();
   let lundi=add(today,-((dow(today)+6)%7));
-  const eqs=filtre==='tous'?['A','B','C','D']:[filtre];
+  const eqs=filtre==='tous'?EQ:[filtre];
   let fetesFait=false;
   const derniere=DATA.jobs.reduce((m,x)=>x.fin>m?x.fin:m,today);
   while(lundi<=derniere&&lundi<=FIN_HORIZON){
@@ -390,7 +430,7 @@ function rendre(){
       if(!fetesFait){fetesFait=true;const f=document.createElement('div');f.className='fetes';f.innerHTML='Congé des Fêtes<small>aucune installation</small>';box.appendChild(f)}
       lundi=add(lundi,7);continue;
     }
-    const lignes=eqs.filter(e=>e!=='B'||lundi<='2026-10-26');
+    const lignes=eqs.filter(e=>{if(CFG){const q=CFG[e];return !!q&&!(q.fin&&lundi>q.fin)&&!(q.deb&&vend<q.deb)}return e!=='B'||lundi<='2026-10-26'});
     if(!lignes.length){lundi=add(lundi,7);continue}
     const sec=document.createElement('section');sec.className='semaine';
     const enCours=today>=lundi&&today<=vend;
@@ -523,10 +563,11 @@ function charger(nip,premiere){
     }
     NIP=nip;try{localStorage.setItem('horaire-nip',nip)}catch(e){}
     try{localStorage.setItem('horaire-data',JSON.stringify(r.data))}catch(e){}
-    DATA=r.data;DATA.jobs=placer(DATA.jobs||[]);
+    DATA=r.data;appliquerConfig(DATA);DATA.jobs=placer(DATA.jobs||[]);
     document.getElementById('ecranNip').hidden=true;document.getElementById('app').hidden=false;
-    const h=new Date();
-    document.getElementById('maj').textContent='Mis à jour à '+h.getHours()+' h '+String(h.getMinutes()).padStart(2,'0');
+    // V5d : on affiche l'heure des DONNÉES (copie du serveur), pas l'heure du téléphone ; alerte rouge si elles sont vieilles
+    const dm=DATA.cacheMs?new Date(DATA.cacheMs):new Date(), ag=DATA.cacheMs?Math.round((Date.now()-DATA.cacheMs)/60000):0, elMaj=document.getElementById('maj');
+    elMaj.textContent='Données de '+dm.getHours()+' h '+String(dm.getMinutes()).padStart(2,'0')+(ag>=15?' ⚠ vieilles de '+ag+' min':'');elMaj.style.color=ag>=15?'#ff6b57':'';
     boutons();rendre();if(document.getElementById('so').value.trim())chercher(false);
     if(premiere){montrerVue(vue)}else if(vue==='cue'||vue==='liv')chargerBons();else if(vue==='rec')chargerRec();else if(vue==='prod'&&PR.sous!=='nouvelle')chargerProd();
   },err=>{
@@ -973,7 +1014,7 @@ let nipSauve='';try{nipSauve=localStorage.getItem('horaire-nip')||''}catch(e){}
 try{
   const sauv=localStorage.getItem('horaire-data');
   if(sauv){
-    DATA=JSON.parse(sauv);DATA.jobs=placer(DATA.jobs||[]);NIP=nipSauve;
+    DATA=JSON.parse(sauv);appliquerConfig(DATA);DATA.jobs=placer(DATA.jobs||[]);NIP=nipSauve;
     document.getElementById('ecranNip').hidden=true;document.getElementById('app').hidden=false;
     boutons();rendre();
     document.getElementById('maj').textContent='Dernière copie affichée — mise à jour…';
