@@ -371,7 +371,7 @@ function actif(e,j){
   return 'on';
 }
 // Place chaque job sur les demi-journées libres de son équipe à partir de sa date estimée.
-// Équipe A : une job qui commence un vendredi est une petite job du vendredi; les autres sautent les vendredis.
+// V10 : plus de « petite job du vendredi ». Une job dont la date tombe un vendredi commence le lundi suivant. Le vendredi (réserve, 1 sur 2) ne sert qu'à la job en cours qui s'allonge; rien d'autre sauf placement à la main.
 function placer(liste){
   // V5 : même règle que la fonction de cédule. Une job EN COURS peut continuer le vendredi et sur la réserve ;
   // une job dont la « Fin prévue » (écrite par la cédule) est plus tôt que le calcul normal prend le vendredi tampon.
@@ -380,13 +380,13 @@ function placer(liste){
   liste.forEach(x=>{if(x.fint&&x.deb&&x.fint<x.deb)x.deb=x.fint;});
   const tri=[...liste].sort((a,b)=>a.deb<b.deb?-1:a.deb>b.deb?1:(a.finp&&b.finp&&a.finp!==b.finp?(a.finp<b.finp?-1:1):(b.demi-a.demi)));
   const essai=(x,large)=>{
-    const e=x.eq, vendredi=sautVendredi(e)&&dow(x.deb)===5, s=[];
+    const e=x.eq, s=[];
     let j=x.deb, reste=Math.max(1,x.demi||2), garde=0;
     while(reste>0&&garde<600&&j<=FIN_HORIZON){
       garde++;
       const st=actif(e,j), libre=large(j);
       const veille=add(j,-1), suite=st==='res'&&(j===auj()||s.some(k=>k.slice(0,10)===veille));
-      const okJour=(libre||suite)?(st==='on'||st==='res'):(st==='on'&&(!sautVendredi(e)||(vendredi?dow(j)===5:dow(j)!==5)));
+      const okJour=(libre||suite)?(st==='on'||st==='res'):(st==='on'&&(!sautVendredi(e)||dow(j)!==5));
       if(okJour){for(const h of ['am','pm']){if(reste>0&&!occ[e+j+h]&&!s.includes(j+h)){s.push(j+h);reste--}}}
       j=add(j,1);
     }
@@ -584,8 +584,14 @@ function montrerNip(msg){
 }
 document.getElementById('formNip').addEventListener('submit',e=>{e.preventDefault();charger(document.getElementById('champNip').value.trim(),true)});
 document.getElementById('btnMaj').onclick=()=>charger(NIP,false);
-setInterval(()=>{if(NIP&&!document.hidden)charger(NIP,false)},5*60*1000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&NIP)charger(NIP,false)});
+// v9 : pas d'appel automatique la nuit ni la fin de semaine (lun-ven 6 h à 18 h, heure de Québec) ; les boutons « Actualiser » fonctionnent toujours
+function heuresOuvrables(){
+  try{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',weekday:'short',hour:'numeric',hour12:false}).formatToParts(new Date());
+    const w=(p.find(x=>x.type==='weekday')||{}).value, h=Number((p.find(x=>x.type==='hour')||{}).value)%24;
+    return !['Sat','Sun'].includes(w)&&h>=6&&h<18;}catch(e){return true}
+}
+setInterval(()=>{if(NIP&&!document.hidden&&heuresOuvrables())charger(NIP,false)},5*60*1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&NIP&&heuresOuvrables())charger(NIP,false)});
 
 // ================= Cueillettes et livraisons : bons à signer =================
 let BONS=[], vue='inst';
