@@ -262,6 +262,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </section>
   <section id="vueRec" hidden style="display:grid;gap:12px">
     <div class="aide" style="color:var(--muted)">Bons des fournisseurs lus automatiquement. Touchez un bon, cochez les colis arrivés, décochez ce qui manque, puis enregistrez. <span style="opacity:.6">[page v8 6 nov. : messages d’erreur et options]</span></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="btnActRec">↻ Actualiser les réceptions</button><span class="aide" id="msgActRec" style="color:var(--muted)"></span></div>
     <div class="listeBons" id="listeRec"><div class="charge">Chargement…</div></div>
   </section>
   <section id="vueProd" hidden style="display:grid;gap:12px"></section>
@@ -611,6 +612,7 @@ document.getElementById('tabInst').onclick=()=>montrerVue('inst');
 document.getElementById('tabCue').onclick=()=>montrerVue('cue');
 document.getElementById('tabLiv').onclick=()=>montrerVue('liv');
 document.getElementById('tabRec').onclick=()=>montrerVue('rec');
+document.getElementById('btnActRec').onclick=actualiserRec;
 document.getElementById('tabProd').onclick=()=>montrerVue('prod');
 const resteBon=b=>(b.colis||[]).reduce((n,g)=>n+g.items.filter(i=>!i.remis&&!i.attente).length,0);
 const srcColis=b=>{const f=(b.colis||[]).map(g=>String(g.groupe||'').split(' · ')[0]).filter(x=>x&&!/^moreau/i.test(x));return !f.length?'':f.length===1?`Selon le bon de livraison de ${f[0]}.`:`Selon les bons de livraison des fournisseurs (${f.join(', ')}).`};
@@ -849,6 +851,16 @@ function chargerRec(){
     if(!r||!r.ok){document.getElementById('listeRec').innerHTML=`<div class="alerte">${esc(r&&r.err||'Erreur')}</div>`;return}
     RECS=r.receptions||[];rendreRec();
   },err=>{document.getElementById('listeRec').innerHTML=`<div class="alerte">Connexion impossible : ${esc(err)}</div>`});
+}
+function actualiserRec(){
+  const b=document.getElementById('btnActRec'),m=document.getElementById('msgActRec');if(!b||b.disabled)return;
+  b.disabled=true;m.textContent='Lecture des nouveaux scans en cours…';
+  const fin=txt=>{b.disabled=false;m.textContent=txt};
+  appelerGs('actualiserReceptions',[NIP],r=>{
+    if(!r||!r.ok){fin((r&&r.err)||'Erreur');return}
+    chargerRec();
+    setTimeout(chargerRec,8000);setTimeout(()=>{chargerRec();fin('Liste mise à jour. Si le bon n\u2019est pas là, attendez 1 minute et touchez encore.')},20000);
+  },err=>fin('Connexion impossible : '+err));
 }
 function rendreRec(){
   const el=document.getElementById('listeRec');el.innerHTML='';
