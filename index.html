@@ -279,7 +279,7 @@ table.tb{width:100%;border-collapse:collapse;font-size:15px}
   </div>
   <main id="semaines" style="display:grid;gap:18px"><div class="charge">Chargement…</div></main>
   </div>
-  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 10 nov. (réceptions v9).</span></footer>
+  <footer>Touchez une job pour voir l’adresse, l’itinéraire et les documents. L’horaire se met à jour tout seul toutes les 5 minutes. <span style="opacity:.7">Version du 10 nov. soir (réceptions v9, terminées).</span></footer>
 </div>
 
 <dialog id="fiche" aria-labelledby="ficheTitre"></dialog>
@@ -335,6 +335,8 @@ function placer(liste){
   // V5 : même règle que la fonction de cédule. Une job EN COURS peut continuer le vendredi et sur la réserve ;
   // une job dont la « Fin prévue » (écrite par la cédule) est plus tôt que le calcul normal prend le vendredi tampon.
   const occ={};
+  // V5c : job terminée AVANT sa date prévue (ex. devancée puis faite) : on la place à sa vraie fin, pas à la date prévue
+  liste.forEach(x=>{if(x.fint&&x.deb&&x.fint<x.deb)x.deb=x.fint;});
   const tri=[...liste].sort((a,b)=>a.deb<b.deb?-1:a.deb>b.deb?1:(a.finp&&b.finp&&a.finp!==b.finp?(a.finp<b.finp?-1:1):(b.demi-a.demi)));
   const essai=(x,large)=>{
     const e=x.eq, vendredi=e==='A'&&dow(x.deb)===5, s=[];
