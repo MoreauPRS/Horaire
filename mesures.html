@@ -711,7 +711,7 @@ function layoutH(S,o,g,k,msg){
 function computeAll(S){
   var k=K(S), out={}, ids=allIds(S), pre={};
   ids.forEach(function(id){
-    var o0=S.openings[id]; if(o0){ o0.mode='projet'; o0.serie=null; ['lip','mTop','mL','mR','bottom','muret','muretH'].forEach(function(kk){ if(S.project.prep[kk]!==undefined) o0.opts[kk]=S.project.prep[kk]; }); }
+    var o0=S.openings[id]; if(o0){ o0.mode='projet'; o0.serie=null; ['lip','mTop','mL','mR','bottom','muret','muretH'].forEach(function(kk){ if(S.project.prep[kk]!==undefined) o0.opts[kk]=S.project.prep[kk]; }); if(o0.muretOwn>0 && S.project.prep.muret && S.project.prep.muret!=='none') o0.opts.muretH=o0.muretOwn; }
     var o=S.openings[id]; o._sd=sideInfo(S,id); o._fid=faceOf(id); var g=geo(S,o), r={id:id, geo:g, mode:effMode(S,o), msgs:[], items:[], pitems:[], pointe:null, cut:[], foam:[], walls:null};
     out[id]=r;
     if(!g.complete) return;
@@ -2121,6 +2121,8 @@ function renderComp(){
     }
     var PP=state.project.prep, prepTxt=(PP.lip?'Lip partout':'Moulures '+[PP.mTop?'haut':'',PP.mL?'gauche':'',PP.mR?'droite':''].filter(Boolean).join(', '))+(PP.bottom?' · bottom track':'')+' · '+({none:'filler seul',foam:'muret',v200:'muret vinyle 200',g300:'muret verre 300'}[PP.muret]||'')+(PP.imposte!=='none'?' · imposte '+(PP.imposte==='v200'?'vinyle':'verre'):'')+' · spreader bar '+(state.project.spreader==='oui'?'oui':'non');
     h+='<div class="sub3"><span class="label">Préparation (tout le projet)</span><span class="hint">'+esc(prepTxt)+'. Se change dans Projet.'+(o.opts.topFill&&o.opts.topFill!=='none'?' Filler du haut de '+esc(inch(+o.opts.topFill))+' sur cette ouverture <button type="button" class="btn small ghost" data-tfx="1">Enlever</button>':'')+'</span></div>';
+    if(PP.muret && PP.muret!=='none'){ var mo=+o.opts.muretH||+PP.muretH, mOwn=o.muretOwn>0, mstdO=[12,20].indexOf(mo)>=0;
+      h+='<div class="sub3"><span class="label">Hauteur du muret de cette ouverture</span><div class="chips sm">'+[12,20].map(function(v){ return '<button type="button" class="chip" data-mo="'+v+'" aria-pressed="'+(mo===v)+'">'+v+'"</button>'; }).join('')+'<input class="tiny num muretOwnIn" inputmode="decimal" aria-label="Hauteur du muret de cette ouverture en pouces" placeholder="sur mesure" value="'+(mstdO?'':esc(inch(mo).replace('"','')))+'">'+(mOwn?'<button type="button" class="btn small ghost" data-mo="reset">Comme le projet ('+esc(inch(+PP.muretH))+')</button>':'')+'</div><span class="hint">'+(mOwn?'Hauteur propre à cette ouverture. ':'Même hauteur que le projet. ')+'Le bas des fenêtres '+(state.project.align==='aucun'?'suit le muret de chaque ouverture (alignement « Non »).':'s\'aligne sur le muret le plus haut '+(state.project.align==='face'?'du mur.':'du projet.'))+'</span></div>'; }
     if(g.complete && r.L){
       var ln=r.lines;
       h+='<div class="lines"><div class="stat"><div class="label">Hauteur des fenêtres</div><div class="v">'+inch(ln.WH-ln.SL)+'</div><div class="s">'+(state.project.align==='aucun'?'propre à l\'ouverture':state.project.align==='face'?'alignés sur le mur':'alignés sur tout le projet')+'</div></div>'+
@@ -2159,6 +2161,8 @@ function renderComp(){
   box.querySelectorAll('.chip[data-pk]').forEach(function(b){ b.addEventListener('click', function(){ o.pointe[b.dataset.pk]=castV(b.dataset.v); save(); afterComp(); }); });
   box.querySelectorAll('.chip[data-k="serie"]').forEach(function(b){ b.addEventListener('click', function(){ o.serie=b.dataset.v; save(); afterComp(); }); });
   box.querySelectorAll('.muretIn').forEach(function(inp){ inp.addEventListener('change', function(){ var v=parseInch(inp.value); if(isFinite(v)&&v>0){ o.opts.muretH=f16(v); save(); afterComp(); } else toast('Hauteur illisible'); }); });
+  box.querySelectorAll('[data-mo]').forEach(function(b){ b.addEventListener('click', function(){ if(b.dataset.mo==='reset'){ delete o.muretOwn; toast('Hauteur du muret remise comme le projet'); } else { o.muretOwn=+b.dataset.mo; } save(); renderCard(false); renderPlan(); }); });
+  box.querySelectorAll('.muretOwnIn').forEach(function(inp){ inp.addEventListener('change', function(){ var v=parseInch(inp.value); if(isFinite(v)&&v>0){ o.muretOwn=f16(v); save(); renderCard(false); renderPlan(); } else toast('Hauteur illisible'); }); });
   box.querySelectorAll('.impIn').forEach(function(inp){ inp.addEventListener('change', function(){ var v=parseInch(inp.value); if(isFinite(v)&&v>0){ state.project.prep.impH=f16(v); save(); afterComp(); } else toast('Hauteur illisible'); }); });
   var pm=$('patioModel'); if(pm) pm.addEventListener('change', function(){ o.prods[o.sel].model=pm.value; save(); afterComp(); });
   var fw=$('fillW'); if(fw) fw.addEventListener('change', function(){ var v=parseInch(fw.value); if(isFinite(v)&&v>0){ o.prods[o.sel].w=f16(v); save(); afterComp(); } else toast('Largeur illisible'); });
