@@ -916,7 +916,7 @@ function ouvrirRec(i){
       <label style="font-weight:600;display:block;margin-top:10px">📍 Emplacement pour tout le bon <input class="rempl" id="sdEmpl" placeholder="A2" maxlength="20" autocapitalize="characters"></label>${photoZone()}</div>`;
   const corps=!dos||!ouvertes.length
     ?sdHtml
-    :`<div class="zone"><h3>Colis sur le bon</h3><div class="aide">Cochez chaque colis à mesure que vous le recevez. Ce qui reste décoché sera noté « non reçu ».</div>${entete}
+    :`<div class="zone"><h3>Colis sur le bon</h3><div class="aide">Comptez chaque ligne : « OK » si ce que vous avez compté est égal à ce qui est écrit, sinon corrigez avec − / +. Une ligne comptée à 0 sera notée « non reçue ».</div>${entete}
       <div style="margin:8px 0"><label style="font-weight:600">📍 Emplacement dans la shop pour tout le bon : <input class="rempl" id="recEmplTous" placeholder="A2" maxlength="20" autocapitalize="characters"></label> <small style="color:var(--muted)">(modifiable colis par colis)</small></div>
       <table class="tb"><tr><th></th><th>Description</th><th>Qté</th><th>📍</th><th>Ligne de commande</th></tr>${lignesColis||'<tr><td colspan="5">Aucun colis lu.</td></tr>'}</table>
       <div id="recTot" class="aide" style="margin-top:6px"></div>${dejaHtml}</div>
@@ -1377,69 +1377,153 @@ const PROFILS={
     try{const doc=await pdfDe(r),box=d.querySelector('#vbPages');box.innerHTML='';
       for(let p=1;p<=doc.numPages;p++){const pg=await doc.getPage(p),vp=pg.getViewport({scale:1.6}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;cv.style.cssText='width:100%;height:auto;display:block;margin-bottom:8px';cv.id='vbp'+p;box.appendChild(cv);await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;if(page&&p===page)cv.scrollIntoView()}
     }catch(e){d.querySelector('#vbPages').innerHTML='<div class="alerte">Le bon ne peut pas s’afficher : '+esc(String(e))+'</div>'}}
+  /* ---- v11 : réception « verrouillée » : rien n'est reçu par défaut ; chaque ligne = OK (compté = écrit) ou correction − / + ; contrôles sur les totaux ; photo obligatoire en cueillette ---- */
+  const nbDe=t=>{ // nombre lu dans l'écriture : « 12 Pks » = 12 ; « B-O » = 0 ; « w/pak » (mot sans nombre) = 1 ; vide = null
+    t=String(t==null?'':t).trim();if(!t)return null;
+    if(/^(b[\s\-\/.]*o|bo|0)\b/i.test(t))return 0;
+    const m=t.match(/\d+/);if(m)return +m[0];
+    return /[a-zà-ÿ]/i.test(t)?1:null};
+  const entier=t=>{const m=String(t==null?'':t).match(/\d+/g);return m?+m[m.length-1]:null};
+  let CUEIL=null; // photo de cueillette déjà mise en page (JPEG base64)
+  const baseEnv=envoyerEnFond;
+  envoyerEnFond=function(r,args,lib){
+    try{const ex=args&&args[5];if(ex&&!args[4]){if(CUEIL)ex.photoCueillette={data:CUEIL,bigWindow:r.bigWindow||''};if(r.bigWindow)ex.bigWindow=r.bigWindow}}catch(e){}
+    return baseEnv(r,args,lib)};
+  function composerCueillette(file,r,dos){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{const W=1400,k=Math.min(1,1600/Math.max(img.width,img.height));let pw=Math.round(img.width*k),ph=Math.round(img.height*k);
+      const sc=(W-40)/pw;const iw=Math.round(pw*sc),ih=Math.round(ph*sc),H0=r.bigWindow?250:190;
+      const c=document.createElement('canvas');c.width=W;c.height=H0+ih+20;const g=c.getContext('2d');
+      g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.fillStyle='#1f3a5a';g.fillRect(0,0,W,86);
+      g.fillStyle='#fff';g.font='bold 44px sans-serif';g.fillText('📦 CUEILLETTE — '+((dos&&dos.nom)||r.clientBon||'Client'),20,58);
+      g.fillStyle='#111';g.font='30px sans-serif';
+      g.fillText([r.fournisseur||'',r.so?'SO-'+r.so:'',r.commandeFournisseur||'',new Date().toISOString().slice(0,10)].filter(String).join('  ·  '),20,134);
+      if(r.bigWindow){g.fillStyle='#8e2a1f';g.font='bold 48px sans-serif';g.fillText('Plus grande fenêtre : '+r.bigWindow,20,210)}
+      g.drawImage(img,20,H0,iw,ih);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',0.8).split(',')[1])};
+    img.onerror=()=>{URL.revokeObjectURL(u);ko('photo illisible')};img.src=u})}
   const base=ouvrirRec;
   ouvrirRec=function(i){
+    CUEIL=null;
     base(i);
     try{
       const r=RECS[i],dlg=document.getElementById('rec');if(!r||!dlg)return;
       const tb=dlg.querySelector('table.tb');if(!tb||!dlg.querySelector('.rck'))return;
       const cks=[...dlg.querySelectorAll('.rck')];
-      // 1. colonne « Reçu » : − qté + unité
-      const rangs=[...tb.querySelectorAll('tr')];
-      const th=rangs[0];const thR=document.createElement('th');thR.textContent='Reçu';
+      const dosT=(r.dossiers||[]).filter(d=>d.type)[0]||null, typ=dosT?String(dosT.type):'';
+      const cueillette=/cueill/i.test(typ), sunspace=/sunspace/i.test(r.fournisseur||'');
+      // bandeau « type de projet »
+      const ent=dlg.querySelector('.ent');
+      const ban=document.createElement('div');ban.className='zone';
+      const ico=/cueill/i.test(typ)?'📦 CUEILLETTE':/livraison/i.test(typ)?'🚚 LIVRAISON':/install/i.test(typ)?'🔧 INSTALLATION':'';
+      ban.innerHTML=ico?`<div style="font-weight:700;font-size:18px">${ico} <small style="font-weight:400;color:var(--muted)">${esc(typ)}</small></div>`:`<div style="font-weight:700;color:#e67e22">⚠ Type de projet non précisé${(r.dossiers||[]).length?'':' (aucun dossier lié)'}</div>`;
+      if(ent)ent.insertAdjacentElement('afterend',ban);
+      // colonne « Reçu » verrouillée
+      const rangs=[...tb.querySelectorAll('tr')], th=rangs[0];
+      const thR=document.createElement('th');thR.textContent='Reçu (compté)';
       const thEmpl=[...th.children].find(x=>x.textContent==='📍');th.insertBefore(thR,thEmpl||null);
-      const recu={};
+      const recu={},compte={},ecrit={};
+      const attendu=ci=>{const co=r.colis[ci],q=(co.qte==null||isNaN(+co.qte))?null:+co.qte,e=ecrit[ci];
+        if(String(e||'').trim()!=='')return nbDe(e);
+        return sunspace?0:q};
       cks.forEach(ck=>{
         const ci=+ck.dataset.c,co=r.colis[ci],tr=ck.closest('tr');
-        const q=(co.qte==null||isNaN(+co.qte))?0:+co.qte;recu[ci]=0;
-        // composants / contenu sous la description
+        recu[ci]=0;compte[ci]=false;ecrit[ci]=co.expedie||'';
         const tdD=tr.children[1];if(co.contenu&&!tdD.querySelector('.cmp')){const s=document.createElement('div');s.className='cmp';s.style.cssText='font-size:12px;color:var(--muted)';s.textContent=co.contenu;tdD.appendChild(s)}
         const td=document.createElement('td');td.style.whiteSpace='nowrap';
-        td.innerHTML=`<button type="button" class="btn rmoins" aria-label="Moins" style="min-width:44px">−</button> <b class="rq" style="display:inline-block;min-width:28px;text-align:center">0</b> <button type="button" class="btn rplus" aria-label="Plus" style="min-width:44px">+</button> <select class="run" aria-label="Unité" style="font:inherit;padding:6px">${UN.map(u=>`<option ${u===uniteDe(co.desc)?'selected':''}>${u}</option>`).join('')}</select>`;
+        td.innerHTML=`<span class="rq" style="display:inline-block;min-width:34px;text-align:center;font-weight:700">—</span> <button type="button" class="btn rok" style="min-width:64px;background:#1f6b3a;color:#fff">OK</button> <button type="button" class="btn rmoins" aria-label="Moins" style="min-width:44px">−</button> <button type="button" class="btn rplus" aria-label="Plus" style="min-width:44px">+</button> <div class="rst" style="font-size:12px"></div>`;
         const emplTd=tr.children[3];tr.insertBefore(td,emplTd);
-        const aff=()=>{td.querySelector('.rq').textContent=recu[ci];ck.checked=recu[ci]>0;maj()};
-        td.querySelector('.rmoins').onclick=()=>{recu[ci]=Math.max(0,recu[ci]-1);aff()};
-        td.querySelector('.rplus').onclick=()=>{recu[ci]=recu[ci]+1;aff()};
-        ck.addEventListener('change',()=>{recu[ci]=ck.checked?(q||1):0;td.querySelector('.rq').textContent=recu[ci];maj()});
+        const aff=()=>{const a=attendu(ci);
+          td.querySelector('.rq').textContent=compte[ci]?recu[ci]:'—';
+          const st=td.querySelector('.rst');
+          if(!compte[ci])st.innerHTML='<span style="color:var(--muted)">à compter</span>';
+          else if(a!=null&&recu[ci]===a)st.innerHTML='<span style="color:#1f6b3a">✓ compté = écrit</span>';
+          else st.innerHTML='<span style="color:#e67e22">⚠ compté '+recu[ci]+(a!=null?' · écrit '+a:' · écrit illisible')+'</span>';
+          td.querySelector('.rok').disabled=attendu(ci)==null;
+          ck.checked=compte[ci]&&recu[ci]>0;maj()};
+        td.querySelector('.rok').onclick=()=>{const a=attendu(ci);if(a==null)return;recu[ci]=a;compte[ci]=true;aff()};
+        td.querySelector('.rmoins').onclick=()=>{if(!compte[ci]){const a=attendu(ci);recu[ci]=a==null?0:a}recu[ci]=Math.max(0,recu[ci]-1);compte[ci]=true;aff()};
+        td.querySelector('.rplus').onclick=()=>{if(!compte[ci]){const a=attendu(ci);recu[ci]=a==null?0:a}recu[ci]=recu[ci]+1;compte[ci]=true;aff()};
+        ck.disabled=true; // la case ne se coche plus à la main : tout passe par OK / − / +
+        td._aff=aff;
       });
-      // 1b. colonne « Expédié » : image de l'écriture manuscrite recadrée sur le scan (jamais retapée) + « Voir le bon »
+      // colonne « Expédié » : image de l'écriture + copie corrigeable du texte
       if(r.pdf){
-        const thE=document.createElement('th');thE.textContent='Expédié';th.insertBefore(thE,thR);
+        const thE=document.createElement('th');thE.textContent='Expédié (écrit)';th.insertBefore(thE,thR);
         cks.forEach(ck=>{const ci=+ck.dataset.c,co=r.colis[ci],tr=ck.closest('tr');
-          const td=document.createElement('td');td.className='exp';td.style.minWidth='90px';
-          td.innerHTML=co.zone?'<span style="color:var(--muted);font-size:12px">…</span>':(co.expedie?'<small style="color:var(--muted)">lu : '+esc(co.expedie)+'</small>':'');
-          tr.insertBefore(td,tr.children[3]); // entre Qté et Reçu
+          const td=document.createElement('td');td.className='exp';td.style.minWidth='130px';
+          td.innerHTML=(co.zone?'<div class="img"><span style="color:var(--muted);font-size:12px">…</span></div>':'')+`<input class="ecr" value="${esc(co.expedie||'')}" aria-label="Texte écrit à la main (corrigeable)" style="width:110px;font:inherit;padding:4px;margin-top:4px">`;
+          tr.insertBefore(td,tr.children[3]);
+          td.querySelector('.ecr').oninput=e=>{ecrit[ci]=e.target.value;(tr.querySelector('.rq').closest('td')._aff||(()=>{}))();ctl()};
         });
         const bv=document.createElement('button');bv.type='button';bv.className='btn';bv.textContent='Voir le bon';bv.style.margin='8px 0';
-        const z0=dlg.querySelector('.zone');if(z0){const h=z0.querySelector('.aide');(h||z0).insertAdjacentElement('afterend',bv)}
+        const z0=tb.closest('.zone');if(z0){const h=z0.querySelector('.aide');(h||z0).insertAdjacentElement('afterend',bv)}
         bv.onclick=()=>voirBon(r);
         pdfDe(r).then(doc=>{
           cks.forEach(ck=>{const co=r.colis[+ck.dataset.c];if(!co.zone)return;
-            const cell=ck.closest('tr').querySelector('td.exp');
+            const cell=ck.closest('tr').querySelector('td.exp .img');
             decouper(doc,co.zone).then(cv=>{cell.innerHTML='';cv.style.cssText='max-width:130px;height:auto;background:#fff;border-radius:6px;border:1px solid var(--line,#999)';cell.appendChild(cv);cv.onclick=()=>voirBon(r,co.zone.p)})
               .catch(()=>{cell.innerHTML='<small style="color:var(--muted)">voir le bon</small>'})});
-          if(r.zoneTotal){const t=document.getElementById('recTot');if(t){const sp=document.createElement('div');sp.id='recTotMain';sp.style.marginTop='6px';t.insertAdjacentElement('afterend',sp);
-            sp.innerHTML='<small style="color:var(--muted)">Total expédié écrit à la main : </small>';decouper(doc,r.zoneTotal).then(cv=>{cv.style.cssText='height:42px;width:auto;background:#fff;border-radius:6px;border:1px solid var(--line,#999);vertical-align:middle';sp.appendChild(cv)}).catch(()=>{})}}
+          if(r.zoneTotal){const sp=document.getElementById('recTotImg');if(sp)decouper(doc,r.zoneTotal).then(cv=>{cv.style.cssText='height:46px;width:auto;background:#fff;border-radius:6px;border:1px solid var(--line,#999);vertical-align:middle';sp.appendChild(cv)}).catch(()=>{})}
         }).catch(()=>{});
       }
-      // 2. totaux
+      // totaux et contrôles
       const totQ=r.colis.reduce((n,c)=>n+(+c.qte||0),0);
-      const maj=()=>{const t=document.getElementById('recTot');if(!t)return;
-        const tr_=Object.keys(recu).reduce((n,k)=>n+recu[k],0);
-        t.innerHTML='<b>Total commandé : '+totQ+' · Total reçu : '+tr_+'</b> ('+cks.filter(c=>c.checked).length+' ligne(s) cochée(s) sur '+cks.length+')'};
-      maj();
-      if(r.controle){const t=document.getElementById('recTot');const ct=document.createElement('div');ct.className='aide';ct.style.marginTop='4px';ct.textContent='Contrôle imprimé sur le bon : '+r.controle;t.insertAdjacentElement('afterend',ct)}
-      // 3. case « J'ai relu le bon » : bloque Enregistrer
+      const tot=document.getElementById('recTot');
+      const ctlBox=document.createElement('div');ctlBox.id='recCtl';ctlBox.style.cssText='margin-top:8px;display:flex;flex-direction:column;gap:4px';
+      tot.insertAdjacentElement('afterend',ctlBox);
+      const avecTotalEcrit=sunspace&&!!(r.zoneTotal||r.totalExpedie);
+      const imprime=entier(r.controle);
+      const zt=document.createElement('div');zt.style.cssText='margin-top:6px;display:'+(avecTotalEcrit?'flex':'none')+';gap:10px;align-items:center;flex-wrap:wrap';
+      zt.innerHTML='<span id="recTotImg"><small style="color:var(--muted)">Total expédié écrit à la main : </small></span><label>Je lis : <input id="recTotEcrit" inputmode="numeric" style="width:70px;font:inherit;padding:6px"></label>';
+      ctlBox.insertAdjacentElement('afterend',zt);
+      // photo de cueillette (obligatoire)
+      let zonePh=null;
+      if(cueillette){
+        zonePh=document.createElement('div');zonePh.className='zone';
+        zonePh.innerHTML=`<h3>📦 Photo de la commande (obligatoire)</h3>${r.bigWindow?`<div style="font-size:22px;font-weight:700;margin:6px 0">Plus grande fenêtre : ${esc(r.bigWindow)}</div>`:''}
+          <div class="aide">Une seule photo de la pile de stock avant d’enregistrer.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn plein" type="button" id="cqPrise">📷 Prendre la photo</button></div>
+          <input type="file" accept="image/*" capture="environment" id="cqIn" hidden><div id="cqVu" style="margin-top:8px"></div>`;
+        ban.insertAdjacentElement('afterend',zonePh);
+        const inp=zonePh.querySelector('#cqIn');
+        zonePh.querySelector('#cqPrise').onclick=()=>inp.click();
+        inp.onchange=async()=>{const f=inp.files[0];inp.value='';if(!f)return;const vu=zonePh.querySelector('#cqVu');vu.textContent='Préparation…';
+          try{CUEIL=await composerCueillette(f,r,dosT?(r.dossiers||[]).filter(d=>d.type)[0]:null);vu.innerHTML=`<img alt="Photo de cueillette" src="data:image/jpeg;base64,${CUEIL}" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--line,#444)"> <div style="color:#1f6b3a;font-weight:600">✓ Photo prête (reprendre la photo pour la remplacer)</div>`}
+          catch(e){CUEIL=null;vu.innerHTML='<div class="alerte">Photo impossible : '+esc(String(e))+'</div>'}ctl()};
+      }
+      // case « J'ai relu » : bloque Enregistrer tant que les contrôles ne passent pas
       const btns=['recOk','recSd'].map(id=>document.getElementById(id)).filter(Boolean);
+      let lab=null;
       if(btns.length){
         const z=btns[0].closest('.zone');
-        const lab=document.createElement('label');lab.style.cssText='display:flex;gap:10px;align-items:center;font-weight:600;margin-bottom:10px';
-        lab.innerHTML='<input type="checkbox" id="recRelu" style="width:28px;height:28px"> J’ai relu le bon : le total concorde';
-        z.insertBefore(lab,z.firstChild);
-        const sync=()=>btns.forEach(b=>{b.disabled=!document.getElementById('recRelu').checked;b.style.opacity=b.disabled?.45:1});
-        lab.querySelector('input').onchange=sync;sync();
+        lab=document.createElement('label');lab.style.cssText='display:flex;gap:10px;align-items:center;font-weight:600;margin-bottom:10px';
+        lab.innerHTML='<input type="checkbox" id="recRelu" style="width:28px;height:28px"> J’ai relu : tout concorde avec le bon';
+        z.insertBefore(lab,z.firstChild);lab.querySelector('input').onchange=()=>ctl();
       }
-      // 4. quantité partielle : avant l'envoi, la ligne porte la quantité reçue
+      function maj(){const t=document.getElementById('recTot');if(!t)return;
+        const tr_=Object.keys(recu).reduce((n,k)=>n+(compte[k]?recu[k]:0),0);
+        t.innerHTML='<b>Total commandé : '+totQ+' · Total compté : '+tr_+'</b> ('+Object.keys(compte).filter(k=>compte[k]).length+' ligne(s) comptée(s) sur '+cks.length+')';ctl()}
+      function ctl(){
+        const n=cks.length,cnt=Object.keys(compte).filter(k=>compte[k]).length;
+        const c1=cnt===n;
+        const c2=imprime==null||totQ===imprime;
+        const sumE=cks.reduce((s,ck)=>{const v=attendu(+ck.dataset.c);return s+(v||0)},0);
+        const te=document.getElementById('recTotEcrit'),teV=te&&te.value.trim()!==''?+te.value.replace(/\D/g,''):null;
+        const c3=!avecTotalEcrit||(teV!=null&&teV===sumE);
+        const c4=!cueillette||!!CUEIL;
+        const L=(ok,txt)=>`<div style="color:${ok?'#1f6b3a':'#e67e22'};font-weight:600">${ok?'✓':'○'} ${txt}</div>`;
+        const box=document.getElementById('recCtl');if(box)box.innerHTML=
+          L(c1,'Toutes les lignes comptées ('+cnt+'/'+n+')')+
+          (imprime!=null?L(c2,'Total commandé '+totQ+' = total imprimé '+imprime):'')+
+          (avecTotalEcrit?L(c3,'Somme des « Expédié » ('+sumE+') = total écrit à la main'+(teV==null?' (à saisir)':' ('+teV+')')):'')+
+          (cueillette?L(c4,'Photo de cueillette prise'):'');
+        const relu=document.getElementById('recRelu'),ok=c1&&c2&&c3&&c4&&relu&&relu.checked;
+        btns.forEach(b=>{b.disabled=!ok;b.style.opacity=b.disabled?.45:1});
+        if(relu){relu.disabled=!(c1&&c2&&c3&&c4);if(relu.disabled)relu.checked=false}
+      }
+      const te0=document.getElementById('recTotEcrit');if(te0)te0.oninput=ctl;
+      cks.forEach(ck=>{const a=ck.closest('tr').querySelector('.rq').closest('td')._aff;if(a)a()});
+      maj();
+      // quantité partielle : avant l'envoi, la ligne porte la quantité comptée
       btns.forEach(b=>b.addEventListener('click',()=>{
         cks.forEach(ck=>{const ci=+ck.dataset.c,co=r.colis[ci],q=(co.qte==null||isNaN(+co.qte))?null:+co.qte;
           if(co._orig==null)co._orig={qte:co.qte,desc:co.desc};
@@ -1447,7 +1531,7 @@ const PROFILS={
           if(ck.checked&&q!=null&&recu[ci]>0&&recu[ci]<q){co.desc=co._orig.desc+' (reçu '+recu[ci]+' sur '+q+')';co.qte=recu[ci]}
           else if(ck.checked&&q!=null&&recu[ci]>q){co.desc=co._orig.desc+' (reçu '+recu[ci]+' pour '+q+' commandé)';co.qte=recu[ci]}
         })},true));
-    }catch(e){console.log('Réception v2 : '+e)}
+    }catch(e){console.log('Réception v3 : '+e)}
   };
 })();
 
