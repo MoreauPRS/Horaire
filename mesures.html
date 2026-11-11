@@ -304,7 +304,7 @@ ol.howto{margin:8px 0 0;padding-left:22px;display:flex;flex-direction:column;gap
     <div class="panel sect" id="projType"></div>
     <div class="panel sect">
       <h2>Murs de la galerie</h2>
-      <p class="hint" style="margin:0">Une ouverture, c'est l'espace entre deux colonnes existantes. Exemple : une colonne au coin et une colonne intermédiaire avant le mur donnent 2 ouvertures sur ce mur.</p>
+      <p class="hint" style="margin:0">Une ouverture, c'est l'espace entre deux colonnes existantes. Exemple : une colonne au coin et une colonne intermédiaire avant le mur donnent 2 ouvertures sur ce mur. Deux ouvertures indépendantes sur un même mur (une à gauche, l'autre à droite) : touche « Séparées » entre les deux.</p>
       <div class="faces" id="faceList"></div>
       <div class="plan" id="projPlan" style="border:1px solid var(--line);border-radius:var(--r);padding:10px;background:var(--surface)"></div>
       <p class="hint" style="margin:0">Vue de haut, la maison en haut. Les murs s'enchaînent dans l'ordre à partir de la maison ; le dernier s'arrête à la maison ou au premier mur qu'il rencontre.</p>
@@ -498,8 +498,8 @@ function coinKind(S,fi){ var fs=S.project.faces, f=fs[fi]; if(f.coinType==='ext'
   if(!tot || !s) return 'ext'; return (s>0)===(tot>0) ? 'ext' : 'int'; }
 function sideInfo(S,id){ var fs=S.project.faces, fid=faceOf(id), j=+id.slice(fid.length), fi=-1;
   fs.forEach(function(f,i){ if(f.id===fid) fi=i; }); var f=fs[fi]; if(!f) return {L:{t:'col',pos:'end'},R:{t:'col',pos:'end'}};
-  var L = j>1 ? {t:'col',pos:'mid'} : fi===0 ? (fs[0].startCol?{t:'col',pos:'end'}:{t:'house',pos:'end',cut:!!fs[0].sidCutS,gain:+fs[0].sidWS||0}) : {t:fs[fi-1].endCoin?'coin':'col', ck:fs[fi-1].endCoin?coinKind(S,fi-1):null, pos:'corner', turn:turnDeg(fs[fi-1],f)};
-  var R = j<f.n ? {t:'col',pos:'mid'} : fi===fs.length-1 ? (fs.length>1 && f.toWall!==false ? (f.endCol?{t:'col',pos:'end'}:{t:'house',pos:'end',cut:!!f.sidCutE,gain:+f.sidWE||0}) : {t:'col',pos:'end'}) : {t:f.endCoin?'coin':'col', ck:f.endCoin?coinKind(S,fi):null, pos:'corner', turn:turnDeg(f,fs[fi+1])};
+  var L = j>1 ? (f.sep&&f.sep[j-1] ? {t:'col',pos:'end'} : {t:'col',pos:'mid'}) : fi===0 ? (fs[0].startCol?{t:'col',pos:'end'}:{t:'house',pos:'end',cut:!!fs[0].sidCutS,gain:+fs[0].sidWS||0}) : {t:fs[fi-1].endCoin?'coin':'col', ck:fs[fi-1].endCoin?coinKind(S,fi-1):null, pos:'corner', turn:turnDeg(fs[fi-1],f)};
+  var R = j<f.n ? (f.sep&&f.sep[j] ? {t:'col',pos:'end'} : {t:'col',pos:'mid'}) : fi===fs.length-1 ? (fs.length>1 && f.toWall!==false ? (f.endCol?{t:'col',pos:'end'}:{t:'house',pos:'end',cut:!!f.sidCutE,gain:+f.sidWE||0}) : {t:'col',pos:'end'}) : {t:f.endCoin?'coin':'col', ck:f.endCoin?coinKind(S,fi):null, pos:'corner', turn:turnDeg(f,fs[fi+1])};
   return {L:L,R:R,fid:fid}; }
 function effMode(S,o){ return o.mode==='projet' ? S.project.mode : o.mode; }
 /* Aplomb obligatoire en mode mur, et en fenêtres dès qu'un côté est en lip (installation en surface) */
@@ -1498,7 +1498,7 @@ function renderProjet(){ renumWalls(state.project);
       '<button type="button" class="btn ghost danger small" data-del="'+i+'">Retirer</button>'+
       '<div class="turn"><span class="label">Direction</span><div class="chips sm">'+DIRS.map(function(d){ return '<button type="button" class="chip" data-dir="'+i+'" data-v="'+d[0]+'" aria-pressed="'+(faceDir(f)===d[0])+'" title="'+esc(d[2])+'"><span aria-hidden="true" style="font-size:19px">'+d[1]+'</span> '+(d[0]%90===0?esc(d[2]):'')+'</button>'; }).join('')+'</div>'+
       (last?'<button type="button" class="chip" data-wall="'+i+'" aria-pressed="'+(f.toWall!==false)+'">Va jusqu\'à la maison</button>':'')+
-      (i===0?houseHTML(f,i,'S','Au début, contre la maison'):'')+
+      sepHTML(f,i)+(i===0?houseHTML(f,i,'S','Au début, contre la maison'):'')+
       (last&&p.faces.length>1&&f.toWall!==false?houseHTML(f,i,'E','Au bout, contre la maison'):'')+
       (p.cols==='new'?'<label class="hint" style="display:flex;align-items:center;gap:8px;margin-left:6px">Colonnes existantes, largeur dans le sens du mur<input class="tiny colWIn" data-fi="'+i+'" inputmode="decimal" autocomplete="off" placeholder="à mesurer" value="'+(+f.colW>0?esc(inch(+f.colW).replace('"','')):'')+'"'+(+f.colW>0?'':' style="border-color:var(--bad)"')+'></label>':'')+
       (i<p.faces.length-1?'<span class="label" style="margin-left:6px">Au bout, vers '+esc(wallName(p.faces[i+1],i+1))+'</span><div class="chips sm"><button type="button" class="chip" data-endc="'+i+'" data-v="0" aria-pressed="'+(!f.endCoin)+'">Colonne</button><button type="button" class="chip" data-endc="'+i+'" data-v="1" aria-pressed="'+(!!f.endCoin)+'">Coin Sunspace</button></div>'+(f.endCoin?(function(){ var ck=coinKind(state,i), ov=f.coinType==='ext'||f.coinType==='int'; return '<div class="chips sm"><button type="button" class="chip" data-ctype="'+i+'" data-v="ext" aria-pressed="'+(ck==='ext')+'">Extérieur</button><button type="button" class="chip" data-ctype="'+i+'" data-v="int" aria-pressed="'+(ck==='int')+'">Intérieur</button></div><span class="hint">'+(ov?'Choisi à la main · <button type="button" class="btn small ghost" data-ctype="'+i+'" data-v="auto">selon le plan</button>':'Détecté sur le plan')+'</span>'; })():''):'')+
@@ -1507,6 +1507,8 @@ function renderProjet(){ renumWalls(state.project);
   $('faceList').querySelectorAll('[data-dir]').forEach(function(b){ b.addEventListener('click', function(){ p.faces[+b.dataset.dir].dir=+b.dataset.v; save(); renderProjet(); }); });
   $('faceList').querySelectorAll('.colWIn').forEach(function(inp){ inp.addEventListener('change', function(){ var raw=inp.value.trim(); if(!raw){ delete p.faces[+inp.dataset.fi].colW; save(); renderProjet(); return; } var v=parseInch(raw); if(!isFinite(v)){ var mm=parseFloat(raw.replace(',','.')); v=isFinite(mm)?mm/25.4:NaN; } else if(v>20) v=v/25.4; if(isFinite(v)&&v>0&&v<20){ p.faces[+inp.dataset.fi].colW=Math.round(v*16)/16; save(); renderProjet(); } else toast('Largeur illisible : en pouces (3 1/2) ou en mm du DISTO'); }); });
   $('faceList').querySelectorAll('.sidIn').forEach(function(inp){ inp.addEventListener('change', function(){ var f=p.faces[+inp.dataset.fi], raw=inp.value.trim(); if(!raw){ delete f[inp.dataset.wk]; save(); renderProjet(); return; } var v=parseInch(raw); if(!isFinite(v)){ var mm=parseFloat(raw.replace(',','.')); v=isFinite(mm)?mm/25.4:NaN; } else if(v>12) v=v/25.4; if(isFinite(v)&&v>0&&v<12){ f[inp.dataset.wk]=Math.round(v*16)/16; save(); renderProjet(); } else toast('Valeur illisible : en pouces (3/4) ou en mm'); }); });
+  $('faceList').querySelectorAll('[data-sepf]').forEach(function(b){ b.addEventListener('click', function(){ var f=p.faces[+b.dataset.sepf], j=+b.dataset.j; f.sep=f.sep||{}; if(b.dataset.v==='1') f.sep[j]=true; else { delete f.sep[j]; if(f.gap) delete f.gap[j]; } save(); renderProjet(); }); });
+  $('faceList').querySelectorAll('.gapIn').forEach(function(inp){ inp.addEventListener('change', function(){ var f=p.faces[+inp.dataset.fi], j=+inp.dataset.j, raw=inp.value.trim(); f.gap=f.gap||{}; if(!raw){ delete f.gap[j]; save(); renderProjet(); return; } var v=parseInch(raw); if(!isFinite(v)){ var mm=parseFloat(raw.replace(',','.')); v=isFinite(mm)?mm/25.4:NaN; } else if(v>400) v=v/25.4; if(isFinite(v)&&v>0&&v<600){ f.gap[j]=Math.round(v*16)/16; save(); renderProjet(); } else toast('Valeur illisible : en pouces ou en mm du DISTO'); }); });
   $('faceList').querySelectorAll('[data-hc]').forEach(function(b){ b.addEventListener('click', function(){ p.faces[+b.dataset.fi][b.dataset.hc]=b.dataset.v==='1'; save(); renderProjet(); }); });
   $('faceList').querySelectorAll('[data-ctype]').forEach(function(b){ b.addEventListener('click', function(){ var f=p.faces[+b.dataset.ctype]; if(b.dataset.v==='auto') delete f.coinType; else f.coinType=b.dataset.v; save(); renderProjet(); }); });
   $('faceList').querySelectorAll('[data-endc]').forEach(function(b){ b.addEventListener('click', function(){ p.faces[+b.dataset.endc].endCoin=b.dataset.v==='1'; save(); renderProjet(); }); });
@@ -1539,6 +1541,18 @@ var TEMPLATES=[
   {id:'U', nm:'U, 3 murs', dirs:[90,0,270], labels:['Côté gauche','Façade','Côté droit']},
   {id:'U45', nm:'U avec coins à 45°', dirs:[90,45,0,315,270], labels:['Côté gauche','Coin gauche','Façade','Coin droit','Côté droit']}
 ];
+function sepHTML(f,i){
+  if(!(f.n>=2)) return '';
+  var h='<div class="opt" style="flex-basis:100%"><span class="label">Ouvertures voisines</span><span class="hint">Collées : elles partagent une colonne. Séparées : deux ouvertures indépendantes avec du mur plein entre les deux (ex. une à gauche, l\'autre à droite).</span>';
+  for(var j=1;j<f.n;j++){
+    var on=!!(f.sep&&f.sep[j]), gv=+(f.gap&&f.gap[j])>0 ? esc(inch(+f.gap[j]).replace('"','')) : '';
+    h+='<div class="chips sm" style="align-items:center"><span class="label" style="margin-right:6px">'+f.id+j+' · '+f.id+(j+1)+'</span>'+
+      '<button type="button" class="chip" data-sepf="'+i+'" data-j="'+j+'" data-v="0" aria-pressed="'+(!on)+'">Collées</button>'+
+      '<button type="button" class="chip" data-sepf="'+i+'" data-j="'+j+'" data-v="1" aria-pressed="'+on+'">Séparées</button>'+
+      (on?'<label class="hint" style="display:flex;align-items:center;gap:6px;margin-left:6px">Mur plein entre les deux (facultatif)<input class="tiny gapIn" data-fi="'+i+'" data-j="'+j+'" inputmode="decimal" autocomplete="off" placeholder="po" value="'+gv+'"></label>':'')+'</div>';
+  }
+  return h+'</div>';
+}
 function faceDir(f){ return f.dir!=null ? +f.dir : 90; }
 function migrateDirs(S){ var hd=90; S.project.faces.forEach(function(f,i){ if(f.dir==null){ hd = (i===0?90:hd) + (+f.turn||0); f.dir=((hd%360)+360)%360; } else hd=+f.dir; if(f.toWall==null) f.toWall=true; }); }
 function segHit(P,u,Q,R2){ var vx=R2[0]-Q[0], vy=R2[1]-Q[1], den=u[0]*vy-u[1]*vx; if(Math.abs(den)<1e-9) return null;
@@ -1555,7 +1569,7 @@ function planGeom(){
     var rad=faceDir(f)*Math.PI/180, ux=Math.cos(rad), uy=Math.sin(rad); if(Math.abs(ux)<1e-9) ux=0; if(Math.abs(uy)<1e-9) uy=0;
     var sx=x, sy=y, t=0;
     if(fi===0) cols.push([x,y]);
-    for(var i=1;i<=f.n;i++){ var w=widthOf(f.id+i), a=t+colW/2, b=a+w; segs.push({id:f.id+i, a:[sx+ux*a,sy+uy*a], b:[sx+ux*b,sy+uy*b], ux:ux, uy:uy, face:f.id}); t=b+colW/2; cols.push([sx+ux*t,sy+uy*t]); }
+    for(var i=1;i<=f.n;i++){ var w=widthOf(f.id+i), a=t+colW/2, b=a+w; segs.push({id:f.id+i, a:[sx+ux*a,sy+uy*a], b:[sx+ux*b,sy+uy*b], ux:ux, uy:uy, face:f.id}); t=b+colW/2; cols.push([sx+ux*t,sy+uy*t]); if(i<f.n && f.sep && f.sep[i]){ var gp=+(f.gap&&f.gap[i])>0 ? +f.gap[i] : 48; t+=gp+colW; cols.push([sx+ux*t,sy+uy*t]); } }
     var need=t; if(!f.n) t=36;
     var last = fi===faces.length-1 && faces.length>1;
     if(last && f.toWall!==false){
