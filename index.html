@@ -783,8 +783,9 @@ function dessinerBande(){
     const d=document.createElement('div');
     d.style.cssText='padding:10px 14px;border-radius:10px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;justify-content:space-between;'+(e.etat==='erreur'?'background:#8e2a1f;color:#fff':e.etat==='ok'?'background:#1f6b3a;color:#fff':'background:#243442;color:#fff');
     if(e.etat==='erreur'){
-      d.innerHTML=`<span>⚠ ${esc(e.nom)} : non enregistré (${esc(e.err||'erreur')})</span><span style="display:flex;gap:8px"><button class="btn" type="button" data-a="re">Réessayer</button></span>`;
+      d.innerHTML=`<span>⚠ ${esc(e.nom)} : non enregistré (${esc(e.err||'erreur')})</span><span style="display:flex;gap:8px"><button class="btn" type="button" data-a="re">Réessayer</button><button class="btn" type="button" data-a="rm">Retirer</button></span>`;
       d.querySelector('[data-a="re"]').onclick=()=>{e.etat='attente';e.err='';dessinerBande();traiterEnvois()};
+      d.querySelector('[data-a="rm"]').onclick=()=>{ if(!confirm('Retirer ce message ? Le bon n’est pas modifié : la liste se rafraîchit.'))return; ENVOIS=ENVOIS.filter(y=>y!==e);dessinerBande();chargerRec()};
     }else d.innerHTML=`<span>${e.etat==='ok'?'✓ '+esc(e.nom)+' : '+esc(e.libelle):'⏳ '+esc(e.nom)+' : envoi en cours…'}</span>`;
     b.appendChild(d);
   });
@@ -805,6 +806,7 @@ function traiterEnvois(){
   const fin=()=>{ENVOI_ACTIF=false;traiterEnvois()};
   appelerGs('confirmerReception',e.args,x=>{
     if(x&&x.ok){
+      if(x.deja)e.libelle='déjà enregistrée';
       e.etat='ok';dessinerBande();
       setTimeout(()=>{ENVOIS=ENVOIS.filter(y=>y!==e);dessinerBande();if(!ENVOIS.length)chargerRec();else rendreRec()},2500);
     }else{e.etat='erreur';e.err=(x&&x.err)||'erreur';dessinerBande();rendreRec();expliquerErreur(e)}
