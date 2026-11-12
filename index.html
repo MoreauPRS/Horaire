@@ -1410,119 +1410,139 @@ const PROFILS={
       const cks=[...dlg.querySelectorAll('.rck')];
       const dosT=(r.dossiers||[]).filter(d=>d.type)[0]||null, typ=dosT?String(dosT.type):'';
       const cueillette=/cueill/i.test(typ), sunspace=/sunspace/i.test(r.fournisseur||'');
-      // bandeau « type de projet »
+      const zT=tb.closest('.zone');
+      // --- feuille d'après la maquette : l'ancien tableau reste caché (il porte les cases, les lignes de commande et les emplacements) ---
+      tb.style.display='none';
+      [...zT.children].forEach(x=>{if(x!==tb&&(x.tagName==='H3'||x.classList.contains('aide')||x.id==='recTot'))x.style.display='none'});
       const ent=dlg.querySelector('.ent');
-      const ban=document.createElement('div');ban.className='zone';
+      const tt=ent&&ent.querySelector('.t');
+      if(tt&&r.commandeFournisseur){const sm=document.createElement('small');sm.style.cssText='display:block;opacity:.85;font-weight:400';sm.textContent='Bon '+r.commandeFournisseur;tt.appendChild(sm)}
+      // bandeau « Dossier · Emplacement »
+      const meta=document.createElement('div');meta.className='zone';meta.style.cssText='display:flex;gap:16px;flex-wrap:wrap;align-items:center';
+      meta.innerHTML=`<span>Dossier : <b>${esc((dosT&&dosT.nom)||(r.dossiers[0]&&r.dossiers[0].nom)||r.clientBon||'—')}</b></span>`;
+      const emp=document.getElementById('recEmplTous');
+      if(emp){const lb=emp.closest('div');const sp=document.createElement('span');sp.innerHTML='Emplacement : ';sp.appendChild(emp);const pt=lb&&lb.querySelector('small');if(lb)lb.style.display='none';meta.appendChild(sp)}
+      // type de projet
       const ico=/cueill/i.test(typ)?'📦 CUEILLETTE':/livraison/i.test(typ)?'🚚 LIVRAISON':/install/i.test(typ)?'🔧 INSTALLATION':'';
-      ban.innerHTML=ico?`<div style="font-weight:700;font-size:18px">${ico} <small style="font-weight:400;color:var(--muted)">${esc(typ)}</small></div>`:`<div style="font-weight:700;color:#e67e22">⚠ Type de projet non précisé${(r.dossiers||[]).length?'':' (aucun dossier lié)'}</div>`;
-      if(ent)ent.insertAdjacentElement('afterend',ban);
-      // colonne « Reçu » verrouillée
-      const rangs=[...tb.querySelectorAll('tr')], th=rangs[0];
-      const thR=document.createElement('th');thR.textContent='Received (compté)';
-      const thEmpl=[...th.children].find(x=>x.textContent==='📍');th.insertBefore(thR,thEmpl||null);
-      const recu={},compte={},ecrit={};
-      const attendu=ci=>{const co=r.colis[ci],q=(co.qte==null||isNaN(+co.qte))?null:+co.qte,e=ecrit[ci];
-        if(String(e||'').trim()!=='')return nbDe(e);
-        return sunspace?0:q};
-      cks.forEach(ck=>{
-        const ci=+ck.dataset.c,co=r.colis[ci],tr=ck.closest('tr');
-        recu[ci]=0;compte[ci]=false;ecrit[ci]=co.expedie||'';
-        const tdD=tr.children[1];if(co.contenu&&!tdD.querySelector('.cmp')){const s=document.createElement('div');s.className='cmp';s.style.cssText='font-size:12px;color:var(--muted)';s.textContent=co.contenu;tdD.appendChild(s)}
-        const td=document.createElement('td');td.style.whiteSpace='nowrap';
-        td.innerHTML=`<span class="rq" style="display:inline-block;min-width:34px;text-align:center;font-weight:700">—</span> <button type="button" class="btn rok" style="min-width:64px;background:#1f6b3a;color:#fff">OK</button> <button type="button" class="btn rmoins" aria-label="Moins" style="min-width:44px">−</button> <button type="button" class="btn rplus" aria-label="Plus" style="min-width:44px">+</button> <div class="rst" style="font-size:12px"></div>`;
-        const emplTd=tr.children[3];tr.insertBefore(td,emplTd);
-        const aff=()=>{const a=attendu(ci);
-          td.querySelector('.rq').textContent=compte[ci]?recu[ci]:'—';
-          const st=td.querySelector('.rst');
-          if(!compte[ci])st.innerHTML='<span style="color:var(--muted)">à compter</span>';
-          else if(a!=null&&recu[ci]===a)st.innerHTML='<span style="color:#1f6b3a">✓ compté = écrit</span>';
-          else st.innerHTML='<span style="color:#e67e22">⚠ compté '+recu[ci]+(a!=null?' · écrit '+a:' · écrit illisible')+'</span>';
-          td.querySelector('.rok').disabled=attendu(ci)==null;
-          ck.checked=compte[ci]&&recu[ci]>0;maj()};
-        td.querySelector('.rok').onclick=()=>{const a=attendu(ci);if(a==null)return;recu[ci]=a;compte[ci]=true;aff()};
-        td.querySelector('.rmoins').onclick=()=>{if(!compte[ci]){const a=attendu(ci);recu[ci]=a==null?0:a}recu[ci]=Math.max(0,recu[ci]-1);compte[ci]=true;aff()};
-        td.querySelector('.rplus').onclick=()=>{if(!compte[ci]){const a=attendu(ci);recu[ci]=a==null?0:a}recu[ci]=recu[ci]+1;compte[ci]=true;aff()};
-        ck.disabled=true; // la case ne se coche plus à la main : tout passe par OK / − / +
-        td._aff=aff;
-      });
-      // colonne « Expédié » : image de l'écriture + copie corrigeable du texte
-      if(r.pdf){
-        const thE=document.createElement('th');thE.textContent='Shipped (écrit + photo)';th.insertBefore(thE,thR);
-        cks.forEach(ck=>{const ci=+ck.dataset.c,co=r.colis[ci],tr=ck.closest('tr');
-          const td=document.createElement('td');td.className='exp';td.style.minWidth='130px';
-          td.innerHTML=`<input class="ecr" value="${esc(co.expedie||'')}" aria-label="Texte écrit à la main (corrigeable)" style="width:110px;font:inherit;padding:4px;margin-bottom:4px;display:block">`+(co.zone?'<div class="img"><span style="color:var(--muted);font-size:12px">…</span></div>':'<div class="img"><small style="color:#e67e22">pas de capture : touchez « Voir le bon »</small></div>');
-          tr.insertBefore(td,tr.children[3]);
-          td.querySelector('.ecr').oninput=e=>{ecrit[ci]=e.target.value;(tr.querySelector('.rq').closest('td')._aff||(()=>{}))();ctl()};
-        });
-        const bv=document.createElement('button');bv.type='button';bv.className='btn';bv.textContent='Voir le bon';bv.style.margin='8px 0';
-        const z0=tb.closest('.zone');if(z0){const h=z0.querySelector('.aide');(h||z0).insertAdjacentElement('afterend',bv)}
-        bv.onclick=()=>voirBon(r);
-        pdfDe(r).then(doc=>{
-          cks.forEach(ck=>{const co=r.colis[+ck.dataset.c];if(!co.zone)return;
-            const cell=ck.closest('tr').querySelector('td.exp .img');
-            decouper(doc,co.zone).then(cv=>{cell.innerHTML='';cv.style.cssText='max-width:130px;height:auto;background:#fff;border-radius:6px;border:1px solid var(--line,#999)';cell.appendChild(cv);cv.onclick=()=>voirBon(r,co.zone.p)})
-              .catch(()=>{cell.innerHTML='<small style="color:var(--muted)">voir le bon</small>'})});
-          if(r.zoneTotal){const sp=document.getElementById('recTotImg');if(sp)decouper(doc,r.zoneTotal).then(cv=>{cv.style.cssText='height:46px;width:auto;background:#fff;border-radius:6px;border:1px solid var(--line,#999);vertical-align:middle';sp.appendChild(cv)}).catch(()=>{})}
-        }).catch(()=>{});
-      }
-      // totaux et contrôles
-      const totQ=r.colis.reduce((n,c)=>n+(+c.qte||0),0);
-      const tot=document.getElementById('recTot');
-      const ctlBox=document.createElement('div');ctlBox.id='recCtl';ctlBox.style.cssText='margin-top:8px;display:flex;flex-direction:column;gap:4px';
-      ctlBox.className='zone';ban.insertAdjacentElement('afterend',ctlBox);
-      const avecTotalEcrit=sunspace&&!!(r.zoneTotal||r.totalExpedie);
-      const imprime=entier(r.controle);
-      const zt=document.createElement('div');zt.style.cssText='margin-top:6px;display:'+(avecTotalEcrit?'flex':'none')+';gap:10px;align-items:center;flex-wrap:wrap';
-      zt.innerHTML='<span id="recTotImg"><small style="color:var(--muted)">Total expédié écrit à la main : </small></span><label>Je lis : <input id="recTotEcrit" inputmode="numeric" style="width:70px;font:inherit;padding:6px"></label>';
-      tot.insertAdjacentElement('afterend',zt);
+      const ban=document.createElement('span');ban.style.cssText='font-weight:700;margin-left:auto'+(ico?'':';color:#e67e22');
+      ban.textContent=ico||('⚠ Type de projet non précisé'+((r.dossiers||[]).length?'':' (aucun dossier lié)'));meta.appendChild(ban);
+      if(ent)ent.insertAdjacentElement('afterend',meta);
+      // contrôles en haut
+      const ctlBox=document.createElement('div');ctlBox.id='recCtl';ctlBox.className='zone';ctlBox.style.cssText='display:grid;gap:4px;font-size:15px';
+      meta.insertAdjacentElement('afterend',ctlBox);
       // photo de cueillette (obligatoire)
-      let zonePh=null;
       if(cueillette){
-        zonePh=document.createElement('div');zonePh.className='zone';
-        zonePh.innerHTML=`<h3>📦 Photo de la commande (obligatoire)</h3>${r.bigWindow?`<div style="font-size:22px;font-weight:700;margin:6px 0">Plus grande fenêtre : ${esc(r.bigWindow)}</div>`:''}
+        const zp=document.createElement('div');zp.className='zone';
+        zp.innerHTML=`<h3>📦 Photo de la commande (obligatoire)</h3>${r.bigWindow?`<div style="font-size:22px;font-weight:700;margin:6px 0">Plus grande fenêtre : ${esc(r.bigWindow)}</div>`:''}
           <div class="aide">Une seule photo de la pile de stock avant d’enregistrer.</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn plein" type="button" id="cqPrise">📷 Prendre la photo</button></div>
           <input type="file" accept="image/*" capture="environment" id="cqIn" hidden><div id="cqVu" style="margin-top:8px"></div>`;
-        ban.insertAdjacentElement('afterend',zonePh);
-        const inp=zonePh.querySelector('#cqIn');
-        zonePh.querySelector('#cqPrise').onclick=()=>inp.click();
-        inp.onchange=async()=>{const f=inp.files[0];inp.value='';if(!f)return;const vu=zonePh.querySelector('#cqVu');vu.textContent='Préparation…';
-          try{CUEIL=await composerCueillette(f,r,dosT?(r.dossiers||[]).filter(d=>d.type)[0]:null);vu.innerHTML=`<img alt="Photo de cueillette" src="data:image/jpeg;base64,${CUEIL}" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--line,#444)"> <div style="color:#1f6b3a;font-weight:600">✓ Photo prête (reprendre la photo pour la remplacer)</div>`}
+        meta.insertAdjacentElement('afterend',zp);
+        const inp=zp.querySelector('#cqIn');
+        zp.querySelector('#cqPrise').onclick=()=>inp.click();
+        inp.onchange=async()=>{const f=inp.files[0];inp.value='';if(!f)return;const vu=zp.querySelector('#cqVu');vu.textContent='Préparation…';
+          try{CUEIL=await composerCueillette(f,r,dosT);vu.innerHTML=`<img alt="Photo de cueillette" src="data:image/jpeg;base64,${CUEIL}" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--line,#444)"> <div style="color:#1f6b3a;font-weight:600">✓ Photo prête (reprendre la photo pour la remplacer)</div>`}
           catch(e){CUEIL=null;vu.innerHTML='<div class="alerte">Photo impossible : '+esc(String(e))+'</div>'}ctl()};
       }
+      // --- tableau de la maquette : ITEM | ORDERED | SHIPPED (écrit + photo) | RECEIVED (compté), avec bandeaux de section ---
+      const css=document.createElement('style');
+      css.textContent=`#recT{width:100%;border-collapse:collapse}#recT th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:8px 10px;background:var(--soft,#f5f7f9);border-bottom:1px solid var(--line)}
+      #recT td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}#recT tr.sec td{background:var(--soft,#f5f7f9);font-weight:700;font-size:13px;text-align:center;padding:6px}
+      #recT .det{font-size:12px;color:var(--muted);margin-top:2px}#recT .qte{font-weight:700;text-align:center;width:70px}
+      #recT .hand{font-family:"Bradley Hand","Segoe Print","Comic Sans MS",cursive;font-size:21px;color:#1d3f8f;border:1.5px dashed var(--line);border-radius:8px;background:var(--soft,#f5f7f9);padding:3px 10px;width:100%;min-width:90px}
+      #recT .rq{display:inline-block;min-width:34px;text-align:center;font-size:22px;font-weight:700}#recT .btn{min-width:46px;padding:6px 10px;font-size:20px}
+      #recT img,#recT canvas.cap{display:block;max-width:210px;height:auto;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:6px}
+      .totg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;padding:12px 0}.totg>div{background:var(--soft,#f5f7f9);border-radius:10px;padding:8px 12px}.totg small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}.totg b{font-size:22px}`;
+      dlg.appendChild(css);
+      const T=document.createElement('table');T.id='recT';
+      T.innerHTML='<thead><tr><th>Item</th><th>Ordered</th><th>Shipped (écrit + photo)</th><th>Received (compté)</th></tr></thead><tbody></tbody>';
+      zT.appendChild(T);
+      const recu={},compte={},ecrit={},aff={};
+      const attendu=ci=>{const co=r.colis[ci],q=(co.qte==null||isNaN(+co.qte))?null:+co.qte,e=ecrit[ci];
+        if(String(e||'').trim()!=='')return nbDe(e);
+        return sunspace?0:q};
+      let sec=null;
+      cks.forEach(ck=>{
+        const ci=+ck.dataset.c,co=r.colis[ci];
+        recu[ci]=0;compte[ci]=false;ecrit[ci]=co.expedie||'';
+        if(co.section&&co.section!==sec){sec=co.section;const s=document.createElement('tr');s.className='sec';s.innerHTML='<td colspan="4">'+esc(sec)+'</td>';T.tBodies[0].appendChild(s)}
+        const tr=document.createElement('tr');
+        const det=co.details||co.contenu||'';
+        tr.innerHTML=`<td>${esc(co.desc)}<div class="det">${esc(det)}</div></td><td class="qte">${co.qte==null?'?':esc(co.qte)}</td>
+          <td style="min-width:200px"><input class="hand" value="${esc(co.expedie||'')}" aria-label="Texte écrit à la main (corrigeable)"><div class="img">${r.pdf?(co.zone?'<small style="color:var(--muted)">…</small>':'<small style="color:#e67e22">pas de capture : touchez « Voir le bon »</small>'):''}</div></td>
+          <td class="c4"></td>`;
+        T.tBodies[0].appendChild(tr);
+        const td=tr.querySelector('.c4');
+        aff[ci]=()=>{
+          const a=attendu(ci),v=recu[ci];
+          if(!compte[ci]){
+            td.innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn m" type="button">−</button> <b class="rq" style="color:var(--muted)">—</b> <button class="btn p" type="button">+</button></div><button class="btn eq" type="button" style="margin-top:6px;font-size:18px;min-width:96px;background:#1f6b3a;color:#fff"${a==null?' disabled':''}>OK</button><div class="det" style="color:#b45309">à compter : OK = conforme à ce qui est écrit, sinon − / +</div>`;tr.style.background='';
+          }else{
+            const ok=a!=null&&v===a;
+            td.innerHTML=`<div style="display:flex;gap:6px;align-items:center"><button class="btn m" type="button">−</button> <b class="rq" style="color:${ok?'#1f7a3d':'#b45309'}">${v}</b> <button class="btn p" type="button">+</button></div><div class="det" style="color:${ok?'#1f7a3d':'#b45309'};font-weight:700">${ok?'✓ compté = écrit':'⚠ écart : compté '+v+' · écrit '+(a==null?'illisible':a)+((co.qte!=null&&v<+co.qte)?' · manque '+(+co.qte-v)+' sur commandé':'')}</div>`;tr.style.background=ok?'':'#fff4e0';
+          }
+          ck.checked=compte[ci]&&recu[ci]>0;maj();
+        };
+        tr.addEventListener('click',ev=>{const b=ev.target.closest('.m,.p,.eq');if(!b)return;
+          const a=attendu(ci);
+          if(b.classList.contains('eq')){if(a==null)return;recu[ci]=a}
+          else{const c=compte[ci]?recu[ci]:(a==null?0:a);recu[ci]=Math.max(0,c+(b.classList.contains('p')?1:-1))}
+          compte[ci]=true;aff[ci]()});
+        tr.querySelector('.hand').oninput=e=>{ecrit[ci]=e.target.value;aff[ci]();ctl()};
+        ck.disabled=true;
+      });
+      // captures de l'écriture (recadrées sur le scan, jamais retapées) + « Voir le bon »
+      if(r.pdf){
+        const bv=document.createElement('button');bv.type='button';bv.className='btn';bv.textContent='Voir le bon';bv.style.margin='8px 0';
+        zT.insertBefore(bv,T);bv.onclick=()=>voirBon(r);
+        pdfDe(r).then(doc=>{
+          cks.forEach((ck,k)=>{const co=r.colis[+ck.dataset.c];if(!co.zone)return;
+            const cell=T.querySelectorAll('tr:not(.sec)')[k+1]&&T.querySelectorAll('tbody tr:not(.sec)')[k].querySelector('.img');if(!cell)return;
+            decouper(doc,co.zone).then(cv=>{cell.innerHTML='';cv.className='cap';cell.appendChild(cv);cv.onclick=()=>voirBon(r,co.zone.p)})
+              .catch(()=>{cell.innerHTML='<small style="color:var(--muted)">voir le bon</small>'})});
+          if(r.zoneTotal){const sp=document.getElementById('recTotImg');if(sp)decouper(doc,r.zoneTotal).then(cv=>{cv.className='cap';sp.appendChild(cv)}).catch(()=>{})}
+        }).catch(()=>{});
+      }
+      // totaux : commandé (imprimé) · expédié (écrit) · reçu (somme des lignes)
+      const totQ=r.colis.reduce((n,c)=>n+(+c.qte||0),0);
+      const imprime=entier(r.controle);
+      const avecTotalEcrit=sunspace;
+      const tg=document.createElement('div');tg.className='totg';
+      tg.innerHTML=`<div><small>Total commandé (imprimé)</small><b>${imprime!=null?imprime:totQ}</b></div>
+        ${avecTotalEcrit?`<div><small>Total expédié (écrit à la main)</small><input id="recTotEcrit" inputmode="numeric" class="hand" style="font-family:inherit;font-size:22px;width:90px;padding:4px 8px" placeholder="?"><div id="recTotImg"></div></div>`:''}
+        <div><small>Total reçu (somme des lignes)</small><b id="recTotRecu">0</b></div>`;
+      zT.appendChild(tg);
       // case « J'ai relu » : bloque Enregistrer tant que les contrôles ne passent pas
       const btns=['recOk','recSd'].map(id=>document.getElementById(id)).filter(Boolean);
-      let lab=null;
       if(btns.length){
         const z=btns[0].closest('.zone');
-        lab=document.createElement('label');lab.style.cssText='display:flex;gap:10px;align-items:center;font-weight:600;margin-bottom:10px';
-        lab.innerHTML='<input type="checkbox" id="recRelu" style="width:28px;height:28px"> J’ai relu : tout concorde avec le bon';
+        const lab=document.createElement('label');lab.style.cssText='display:flex;gap:10px;align-items:center;font-weight:600;margin-bottom:10px';
+        lab.innerHTML='<input type="checkbox" id="recRelu" style="width:28px;height:28px"> J’ai relu le bon : le total concorde';
         z.insertBefore(lab,z.firstChild);lab.querySelector('input').onchange=()=>ctl();
       }
-      function maj(){const t=document.getElementById('recTot');if(!t)return;
-        const tr_=Object.keys(recu).reduce((n,k)=>n+(compte[k]?recu[k]:0),0);
-        t.innerHTML='<b>Total commandé : '+totQ+' · Total compté : '+tr_+'</b> ('+Object.keys(compte).filter(k=>compte[k]).length+' ligne(s) comptée(s) sur '+cks.length+')';ctl()}
+      function maj(){const e=document.getElementById('recTotRecu');if(e)e.textContent=Object.keys(recu).reduce((n,k)=>n+(compte[k]?recu[k]:0),0);ctl()}
       function ctl(){
         const n=cks.length,cnt=Object.keys(compte).filter(k=>compte[k]).length;
         const c1=cnt===n;
         const c2=imprime==null||totQ===imprime;
-        const sumE=cks.reduce((s,ck)=>{const v=attendu(+ck.dataset.c);return s+(v||0)},0);
+        const sumE=cks.reduce((s,ck)=>s+(attendu(+ck.dataset.c)||0),0);
         const te=document.getElementById('recTotEcrit'),teV=te&&te.value.trim()!==''?+te.value.replace(/\D/g,''):null;
         const c3=!avecTotalEcrit||(teV!=null&&teV===sumE);
         const c4=!cueillette||!!CUEIL;
-        const L=(ok,txt)=>`<div style="color:${ok?'#1f6b3a':'#e67e22'};font-weight:600">${ok?'✓':'○'} ${txt}</div>`;
+        const ecarts=cks.filter(ck=>{const ci=+ck.dataset.c;return compte[ci]&&recu[ci]!==attendu(ci)}).length;
+        const L=(ok,txt)=>`<div style="color:${ok?'#1f6b3a':'#b45309'}">${ok?'✓':'✗'} ${txt}</div>`;
         const box=document.getElementById('recCtl');if(box)box.innerHTML=
-          L(c1,'Toutes les lignes comptées ('+cnt+'/'+n+')')+
-          (imprime!=null?L(c2,'Total commandé '+totQ+' = total imprimé '+imprime):'')+
-          (avecTotalEcrit?L(c3,'Somme des « Expédié » ('+sumE+') = total écrit à la main'+(teV==null?' (à saisir)':' ('+teV+')')):'')+
-          (cueillette?L(c4,'Photo de cueillette prise'):'');
+          L(c1,'Lignes comptées : '+cnt+' sur '+n)+
+          (imprime!=null?L(c2,'Somme des « Ordered » = '+totQ+' (total imprimé : '+imprime+')'):'')+
+          (avecTotalEcrit?L(c3,'Somme des « Shipped » recopiés = '+sumE+' (total écrit sur le bon : '+(teV==null?'à saisir':teV)+')'+((teV!=null&&!c3)?' — une lecture est fausse, comparer avec les photos':'')):'')+
+          (cueillette?L(c4,'Photo de cueillette prise'):'')+
+          `<div style="color:var(--muted)">${ecarts?ecarts+' écart(s) entre compté et écrit : noté comme manque/écart dans Zoho':'Aucun écart entre compté et écrit'}</div>`;
         const relu=document.getElementById('recRelu'),ok=c1&&c2&&c3&&c4&&relu&&relu.checked;
         btns.forEach(b=>{b.disabled=!ok;b.style.opacity=b.disabled?.45:1});
         if(relu){relu.disabled=!(c1&&c2&&c3&&c4);if(relu.disabled)relu.checked=false}
       }
       const te0=document.getElementById('recTotEcrit');if(te0)te0.oninput=ctl;
-      cks.forEach(ck=>{const a=ck.closest('tr').querySelector('.rq').closest('td')._aff;if(a)a()});
-      maj();
+      cks.forEach(ck=>aff[+ck.dataset.c]());
       // quantité partielle : avant l'envoi, la ligne porte la quantité comptée
       btns.forEach(b=>b.addEventListener('click',()=>{
         cks.forEach(ck=>{const ci=+ck.dataset.c,co=r.colis[ci],q=(co.qte==null||isNaN(+co.qte))?null:+co.qte;
