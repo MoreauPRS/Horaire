@@ -1418,7 +1418,7 @@ const PROFILS={
       if(ent)ent.insertAdjacentElement('afterend',ban);
       // colonne « Reçu » verrouillée
       const rangs=[...tb.querySelectorAll('tr')], th=rangs[0];
-      const thR=document.createElement('th');thR.textContent='Reçu (compté)';
+      const thR=document.createElement('th');thR.textContent='Received (compté)';
       const thEmpl=[...th.children].find(x=>x.textContent==='📍');th.insertBefore(thR,thEmpl||null);
       const recu={},compte={},ecrit={};
       const attendu=ci=>{const co=r.colis[ci],q=(co.qte==null||isNaN(+co.qte))?null:+co.qte,e=ecrit[ci];
@@ -1447,10 +1447,10 @@ const PROFILS={
       });
       // colonne « Expédié » : image de l'écriture + copie corrigeable du texte
       if(r.pdf){
-        const thE=document.createElement('th');thE.textContent='Expédié (écrit)';th.insertBefore(thE,thR);
+        const thE=document.createElement('th');thE.textContent='Shipped (écrit + photo)';th.insertBefore(thE,thR);
         cks.forEach(ck=>{const ci=+ck.dataset.c,co=r.colis[ci],tr=ck.closest('tr');
           const td=document.createElement('td');td.className='exp';td.style.minWidth='130px';
-          td.innerHTML=(co.zone?'<div class="img"><span style="color:var(--muted);font-size:12px">…</span></div>':'')+`<input class="ecr" value="${esc(co.expedie||'')}" aria-label="Texte écrit à la main (corrigeable)" style="width:110px;font:inherit;padding:4px;margin-top:4px">`;
+          td.innerHTML=`<input class="ecr" value="${esc(co.expedie||'')}" aria-label="Texte écrit à la main (corrigeable)" style="width:110px;font:inherit;padding:4px;margin-bottom:4px;display:block">`+(co.zone?'<div class="img"><span style="color:var(--muted);font-size:12px">…</span></div>':'<div class="img"><small style="color:#e67e22">pas de capture : touchez « Voir le bon »</small></div>');
           tr.insertBefore(td,tr.children[3]);
           td.querySelector('.ecr').oninput=e=>{ecrit[ci]=e.target.value;(tr.querySelector('.rq').closest('td')._aff||(()=>{}))();ctl()};
         });
@@ -1469,12 +1469,12 @@ const PROFILS={
       const totQ=r.colis.reduce((n,c)=>n+(+c.qte||0),0);
       const tot=document.getElementById('recTot');
       const ctlBox=document.createElement('div');ctlBox.id='recCtl';ctlBox.style.cssText='margin-top:8px;display:flex;flex-direction:column;gap:4px';
-      tot.insertAdjacentElement('afterend',ctlBox);
+      ctlBox.className='zone';ban.insertAdjacentElement('afterend',ctlBox);
       const avecTotalEcrit=sunspace&&!!(r.zoneTotal||r.totalExpedie);
       const imprime=entier(r.controle);
       const zt=document.createElement('div');zt.style.cssText='margin-top:6px;display:'+(avecTotalEcrit?'flex':'none')+';gap:10px;align-items:center;flex-wrap:wrap';
       zt.innerHTML='<span id="recTotImg"><small style="color:var(--muted)">Total expédié écrit à la main : </small></span><label>Je lis : <input id="recTotEcrit" inputmode="numeric" style="width:70px;font:inherit;padding:6px"></label>';
-      ctlBox.insertAdjacentElement('afterend',zt);
+      tot.insertAdjacentElement('afterend',zt);
       // photo de cueillette (obligatoire)
       let zonePh=null;
       if(cueillette){
