@@ -1371,6 +1371,7 @@ const PROFILS={
     const o=document.createElement('canvas');o.width=Math.max(1,Math.round(w));o.height=Math.max(1,Math.round(h));
     o.getContext('2d').drawImage(cv,x,y,w,h,0,0,o.width,o.height);return o}
   async function voirBon(r,page){
+    BON_VU=true;try{if(CTL_REC)CTL_REC()}catch(e){}
     let d=document.getElementById('voirBon');if(!d){d=document.createElement('dialog');d.id='voirBon';d.style.cssText='width:min(96vw,1000px);max-height:94vh;padding:0;border:0;border-radius:12px';document.body.appendChild(d)}
     d.innerHTML='<div style="position:sticky;top:0;background:#1f3a5a;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center"><b>Bon '+esc(r.so?'SO-'+r.so:(r.poLabel||''))+'</b><button type="button" class="btn" id="vbFerme">Fermer ×</button></div><div id="vbPages" style="padding:8px;overflow:auto;max-height:84vh"><div class="charge">Chargement du bon…</div></div>';
     d.showModal();d.querySelector('#vbFerme').onclick=()=>d.close();
@@ -1384,6 +1385,7 @@ const PROFILS={
     const m=t.match(/\d+/);if(m)return +m[0];
     return /[a-zà-ÿ]/i.test(t)?1:null};
   const entier=t=>{const m=String(t==null?'':t).match(/\d+/g);return m?+m[m.length-1]:null};
+  let BON_VU=false,CTL_REC=null; // le bon original a-t-il été ouvert (référence obligatoire en cas d'écart)
   let CUEIL=null; // photo de cueillette déjà mise en page (JPEG base64)
   const baseEnv=envoyerEnFond;
   envoyerEnFond=function(r,args,lib){
@@ -1402,7 +1404,7 @@ const PROFILS={
     img.onerror=()=>{URL.revokeObjectURL(u);ko('photo illisible')};img.src=u})}
   const base=ouvrirRec;
   ouvrirRec=function(i){
-    CUEIL=null;
+    CUEIL=null;BON_VU=false;CTL_REC=null;
     base(i);
     try{
       const r=RECS[i],dlg=document.getElementById('rec');if(!r||!dlg)return;
@@ -1507,10 +1509,12 @@ const PROFILS={
       const totQ=r.colis.reduce((n,c)=>n+(+c.qte||0),0);
       const imprime=entier(r.controle);
       const avecTotalEcrit=sunspace;
+      const ecritTot=entier(r.totalExpedie);
       const tg=document.createElement('div');tg.className='totg';
       tg.innerHTML=`<div><small>Total commandé (imprimé)</small><b>${imprime!=null?imprime:totQ}</b></div>
-        ${avecTotalEcrit?`<div><small>Total expédié (écrit à la main)</small><input id="recTotEcrit" inputmode="numeric" class="hand" style="font-family:inherit;font-size:22px;width:90px;padding:4px 8px" placeholder="?"><div id="recTotImg"></div></div>`:''}
-        <div><small>Total reçu (somme des lignes)</small><b id="recTotRecu">0</b></div>`;
+        <div><small>Total expédié (somme des lignes)</small><b id="recTotExp">0</b></div>
+        ${avecTotalEcrit?`<div><small>Total écrit sur le bon</small><b id="recTotBon">${ecritTot!=null?ecritTot:'?'}</b><div id="recTotImg"></div></div>`:''}
+        <div><small>Total reçu (compté)</small><b id="recTotRecu">0</b></div>`;
       zT.appendChild(tg);
       // case « J'ai relu » : bloque Enregistrer tant que les contrôles ne passent pas
       const btns=['recOk','recSd'].map(id=>document.getElementById(id)).filter(Boolean);
@@ -1524,24 +1528,27 @@ const PROFILS={
       function ctl(){
         const n=cks.length,cnt=Object.keys(compte).filter(k=>compte[k]).length;
         const c1=cnt===n;
-        const c2=imprime==null||totQ===imprime;
         const sumE=cks.reduce((s,ck)=>s+(attendu(+ck.dataset.c)||0),0);
-        const te=document.getElementById('recTotEcrit'),teV=te&&te.value.trim()!==''?+te.value.replace(/\D/g,''):null;
-        const c3=!avecTotalEcrit||(teV!=null&&teV===sumE);
+        const eT=document.getElementById('recTotExp');if(eT)eT.textContent=sumE;
+        const ecOrd=imprime!=null&&totQ!==imprime;
+        const ecExp=avecTotalEcrit&&(ecritTot==null||sumE!==ecritTot);
+        const ecart=(ecOrd||ecExp)&&!!r.pdf;
         const c4=!cueillette||!!CUEIL;
         const ecarts=cks.filter(ck=>{const ci=+ck.dataset.c;return compte[ci]&&recu[ci]!==attendu(ci)}).length;
         const L=(ok,txt)=>`<div style="color:${ok?'#1f6b3a':'#b45309'}">${ok?'✓':'✗'} ${txt}</div>`;
         const box=document.getElementById('recCtl');if(box)box.innerHTML=
           L(c1,'Lignes comptées : '+cnt+' sur '+n)+
-          (imprime!=null?L(c2,'Somme des « Ordered » = '+totQ+' (total imprimé : '+imprime+')'):'')+
-          (avecTotalEcrit?L(c3,'Somme des « Shipped » recopiés = '+sumE+' (total écrit sur le bon : '+(teV==null?'à saisir':teV)+')'+((teV!=null&&!c3)?' — une lecture est fausse, comparer avec les photos':'')):'')+
+          (imprime!=null?L(!ecOrd,'Somme des « Ordered » = '+totQ+' (total imprimé : '+imprime+')'):'')+
+          (avecTotalEcrit?L(!ecExp,'Somme des « Shipped » = '+sumE+' (total écrit sur le bon : '+(ecritTot==null?'non lu':ecritTot)+')'):'')+
           (cueillette?L(c4,'Photo de cueillette prise'):'')+
+          (ecart?L(BON_VU,BON_VU?'Écart : bon original consulté':'Écart avec le bon : ouvrez le bon original (« Voir le bon ») avant d’enregistrer'):'')+
           `<div style="color:var(--muted)">${ecarts?ecarts+' écart(s) entre compté et écrit : noté comme manque/écart dans Zoho':'Aucun écart entre compté et écrit'}</div>`;
-        const relu=document.getElementById('recRelu'),ok=c1&&c2&&c3&&c4&&relu&&relu.checked;
+        const relu=document.getElementById('recRelu'),pret=c1&&c4;
+        const ok=pret&&relu&&relu.checked&&(!ecart||BON_VU);
         btns.forEach(b=>{b.disabled=!ok;b.style.opacity=b.disabled?.45:1});
-        if(relu){relu.disabled=!(c1&&c2&&c3&&c4);if(relu.disabled)relu.checked=false}
+        if(relu){relu.disabled=!pret;if(relu.disabled)relu.checked=false}
       }
-      const te0=document.getElementById('recTotEcrit');if(te0)te0.oninput=ctl;
+      CTL_REC=ctl;
       cks.forEach(ck=>aff[+ck.dataset.c]());
       // quantité partielle : avant l'envoi, la ligne porte la quantité comptée
       btns.forEach(b=>b.addEventListener('click',()=>{
